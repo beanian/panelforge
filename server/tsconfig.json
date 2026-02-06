@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@panelforge/shared": ["../packages/shared/src"],
+      "@panelforge/shared/*": ["../packages/shared/src/*"]
+    }
+  },
+  "include": ["src/**/*", "prisma/**/*"],
+  "references": [
+    { "path": "../packages/shared" }
+  ]
+}

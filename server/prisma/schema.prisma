@@ -1,0 +1,228 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum PinMode {
+  INPUT
+  OUTPUT
+  PWM
+}
+
+enum PinType {
+  DIGITAL
+  ANALOG
+}
+
+enum PowerRail {
+  FIVE_V
+  NINE_V
+  TWENTY_SEVEN_V
+  NONE
+}
+
+enum WiringStatus {
+  UNASSIGNED
+  PLANNED
+  WIRED
+  TESTED
+  COMPLETE
+}
+
+enum BuildStatus {
+  NOT_ONBOARDED
+  PLANNED
+  IN_PROGRESS
+  COMPLETE
+  HAS_ISSUES
+}
+
+enum VariableType {
+  SIMVAR
+  LVAR
+  HVAR
+}
+
+enum MobiFlightEventType {
+  INPUT_ACTION
+  OUTPUT_CONDITION
+  STEPPER_GAUGE
+  LED_PWM
+}
+
+// ─── Board ──────────────────────────────────────────────
+
+model Board {
+  id              String          @id @default(cuid())
+  name            String          @unique
+  boardType       String          @default("Arduino Mega 2560")
+  digitalPinCount Int             @default(54)
+  analogPinCount  Int             @default(16)
+  pwmPins         Int[]           @default([2,3,4,5,6,7,8,9,10,11,12,13,44,45,46])
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  pinAssignments  PinAssignment[]
+}
+
+// ─── Panel Section ──────────────────────────────────────
+
+model PanelSection {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  slug               String              @unique
+  widthMm            Float?
+  heightMm           Float?
+  dzusSizes          String?
+  dimensionNotes     String?
+  buildStatus        BuildStatus         @default(NOT_ONBOARDED)
+  onboardedAt        DateTime?
+  sourceMsn          String?
+  aircraftVariant    String?
+  registration       String?
+  lineageNotes       String?
+  lineageUrls        String[]            @default([])
+  svgX               Float?
+  svgY               Float?
+  svgWidth           Float?
+  svgHeight          Float?
+  sortOrder          Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  componentInstances ComponentInstance[]
+  journalEntries     JournalEntry[]
+}
+
+// ─── Component Type (Library) ───────────────────────────
+
+model ComponentType {
+  id                 String              @id @default(cuid())
+  name               String              @unique
+  description        String?
+  defaultPinCount    Int
+  pinTypesRequired   PinType[]
+  defaultPowerRail   PowerRail           @default(NONE)
+  defaultPinMode     PinMode             @default(INPUT)
+  pwmRequired        Boolean             @default(false)
+  mobiFlightTemplate Json?
+  notes              String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  componentInstances ComponentInstance[]
+}
+
+// ─── Component Instance ─────────────────────────────────
+
+model ComponentInstance {
+  id              String          @id @default(cuid())
+  name            String
+  componentTypeId String
+  componentType   ComponentType   @relation(fields: [componentTypeId], references: [id])
+  panelSectionId  String
+  panelSection    PanelSection    @relation(fields: [panelSectionId], references: [id])
+  buildStatus     BuildStatus     @default(PLANNED)
+  powerRail       PowerRail?
+  notes           String?
+  sortOrder       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  pinAssignments  PinAssignment[]
+  journalEntries  JournalEntry[]
+
+  @@index([panelSectionId])
+  @@index([componentTypeId])
+}
+
+// ─── Pin Assignment ─────────────────────────────────────
+
+model PinAssignment {
+  id                  String             @id @default(cuid())
+  boardId             String
+  board               Board              @relation(fields: [boardId], references: [id])
+  pinNumber           String
+  pinType             PinType
+  pinMode             PinMode            @default(INPUT)
+  componentInstanceId String?
+  componentInstance   ComponentInstance?  @relation(fields: [componentInstanceId], references: [id])
+  description         String?
+  powerRail           PowerRail          @default(NONE)
+  wiringStatus        WiringStatus       @default(UNASSIGNED)
+  notes               String?
+  mosfetChannelId     String?            @unique
+  mosfetChannel       MosfetChannel?     @relation(fields: [mosfetChannelId], references: [id])
+  mobiFlightMapping   MobiFlightMapping?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@unique([boardId, pinNumber])
+  @@index([componentInstanceId])
+  @@index([boardId])
+  @@index([powerRail])
+  @@index([wiringStatus])
+}
+
+// ─── MOSFET Board ───────────────────────────────────────
+
+model MosfetBoard {
+  id           String          @id @default(cuid())
+  name         String          @unique
+  channelCount Int             @default(16)
+  notes        String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  channels     MosfetChannel[]
+}
+
+model MosfetChannel {
+  id            String         @id @default(cuid())
+  mosfetBoardId String
+  mosfetBoard   MosfetBoard    @relation(fields: [mosfetBoardId], references: [id], onDelete: Cascade)
+  channelNumber Int
+  pinAssignment PinAssignment?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([mosfetBoardId, channelNumber])
+}
+
+// ─── MobiFlight Mapping ─────────────────────────────────
+
+model MobiFlightMapping {
+  id              String              @id @default(cuid())
+  pinAssignmentId String              @unique
+  pinAssignment   PinAssignment       @relation(fields: [pinAssignmentId], references: [id], onDelete: Cascade)
+  variableName    String
+  variableType    VariableType        @default(LVAR)
+  eventType       MobiFlightEventType @default(INPUT_ACTION)
+  configParams    Json?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([variableType])
+}
+
+// ─── Journal Entry ──────────────────────────────────────
+
+model JournalEntry {
+  id                  String             @id @default(cuid())
+  title               String
+  body                String
+  panelSectionId      String?
+  panelSection        PanelSection?      @relation(fields: [panelSectionId], references: [id])
+  componentInstanceId String?
+  componentInstance   ComponentInstance?  @relation(fields: [componentInstanceId], references: [id])
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([panelSectionId])
+  @@index([componentInstanceId])
+  @@index([createdAt])
+}
