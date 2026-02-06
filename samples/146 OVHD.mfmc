@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ModuleType>MobiFlight Mega</ModuleType>
+  <ModuleName>146 OVHD</ModuleName>
+  <PowerSavingTime>600</PowerSavingTime>
+  <Output Name="Backlight" Pin="6" />
+  <Stepper Name="FuelFeedEng4" Pin1="49" Pin2="48" Pin3="49" Pin4="48" BtnPin="52" Mode="2" Backlash="0" Deactivate="false" Profile="3" />
+  <Output Name="Annun 1 LFeed" Pin="22" />
+  <Output Name="Annun 2 Blank" Pin="23" />
+  <Output Name="Annun 3 Blank" Pin="24" />
+  <Output Name="Annun 4 - RFeed" Pin="25" />
+  <Output Name="Annun 5 - Xfeed" Pin="26" />
+  <Output Name="Annun 6 - Xfer R" Pin="27" />
+  <Output Name="Annun 7 - Xfer L" Pin="28" />
+  <Output Name="Annun 8 - Refuel" Pin="29" />
+  <Output Name="LStdbyLoPress" Pin="30" />
+  <Output Name="L Feed Valve" Pin="31" />
+  <Output Name="R Feed Valve" Pin="32" />
+  <Output Name="R Stdby Lo Press" Pin="33" />
+  <Output Name="R Outer Lo Pres" Pin="34" />
+  <Output Name="R Inner Lo Press" Pin="35" />
+  <Output Name="L Inner Lo Press" Pin="36" />
+  <Output Name="L Outer Lo Press" Pin="37" />
+  <Stepper Name="FuelFeedEng3" Pin1="50" Pin2="51" Pin3="50" Pin4="51" BtnPin="53" Mode="2" Backlash="0" Deactivate="false" Profile="3" />
+  <Stepper Name="FuelFeedEng2" Pin1="69" Pin2="68" Pin3="69" Pin4="68" BtnPin="44" Mode="2" Backlash="0" Deactivate="false" Profile="3" />
+  <Stepper Name="FuelFeedEng1" Pin1="67" Pin2="66" Pin3="67" Pin4="66" BtnPin="65" Mode="2" Backlash="0" Deactivate="false" Profile="3" />
+  <Stepper Name="FuelTemp" Pin1="64" Pin2="63" Pin3="64" Pin4="63" BtnPin="62" Mode="2" Backlash="0" Deactivate="false" Profile="3" />
+  <Output Name="CabinCallLight" Pin="21" />
+  <Output Name="EmerCallLight" Pin="20" />
+  <Output Name="Grnd Call Light" Pin="19" />
+  <Button Name="Grnd Call Btn" Pin="18" />
+  <Button Name="Cabin Call Btn" Pin="17" />
+  <Button Name="Emerg Call Btn" Pin="16" />
+  <Button Name="Stby Comp Eye Lo" Pin="15" />
+  <Button Name="Push Cncl Call" Pin="14" />
+</Config>
