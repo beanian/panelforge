@@ -1,7 +1,11 @@
 {
   "name": "panelforge",
   "private": true,
-  "workspaces": ["packages/*", "client", "server"],
+  "workspaces": [
+    "packages/*",
+    "client",
+    "server"
+  ],
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "npm run dev --workspace=client",
@@ -10,10 +14,13 @@
     "db:seed": "npm run db:seed --workspace=server",
     "db:studio": "npm run db:studio --workspace=server",
     "build": "npm run build --workspaces --if-present",
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   }
 }
