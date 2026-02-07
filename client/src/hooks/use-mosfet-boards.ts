@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export interface MosfetChannel {
@@ -26,5 +26,14 @@ export function useMosfetBoards() {
   return useQuery<MosfetBoard[]>({
     queryKey: ['mosfet-boards'],
     queryFn: () => api.get('/mosfet-boards'),
+  });
+}
+
+export function useCreateMosfetBoard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; channelCount?: number; notes?: string }) =>
+      api.post('/mosfet-boards', data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mosfet-boards'] }),
   });
 }

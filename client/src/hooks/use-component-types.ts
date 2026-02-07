@@ -10,6 +10,7 @@ export interface ComponentType {
   defaultPowerRail: string;
   defaultPinMode: string;
   pwmRequired: boolean;
+  requiresMosfet: boolean;
   mobiFlightTemplate: unknown | null;
   notes: string | null;
   _count?: { componentInstances: number };

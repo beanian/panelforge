@@ -4,7 +4,7 @@ import { renderWithProviders } from './test/test-utils';
 import App from './App';
 
 describe('App', () => {
-  it('renders all 10 nav items', () => {
+  it('renders all nav items', () => {
     renderWithProviders(<App />);
 
     const navItems = [
@@ -12,12 +12,12 @@ describe('App', () => {
       'Pin Manager',
       'Component Library',
       'Power Budget',
-      'Build Progress',
       'Wiring Diagram',
       'MobiFlight',
       'BOM Generator',
       'Journal',
       'Reference',
+      'Calibrate Sections',
     ];
 
     for (const item of navItems) {

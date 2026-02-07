@@ -35,6 +35,7 @@ export default function PanelMapPage() {
   const { scale, translateX, translateY, containerProps: panZoomContainerProps, style: panZoomStyle, setContainerRef, resetView, zoomToRect } = usePanZoom();
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
+  const zoomedRectRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
 
   // ─── Mutations ──────────────────────────────────────
   const quickStatusMutation = useMutation({
@@ -188,11 +189,17 @@ export default function PanelMapPage() {
 
   const handleZoomToSection = useCallback(
     (rect: { x: number; y: number; width: number; height: number }) => {
-      if (innerRef.current) {
+      if (!innerRef.current) return;
+      const prev = zoomedRectRef.current;
+      if (prev && prev.x === rect.x && prev.y === rect.y && prev.width === rect.width && prev.height === rect.height) {
+        resetView();
+        zoomedRectRef.current = null;
+      } else {
         zoomToRect(rect, innerRef.current);
+        zoomedRectRef.current = rect;
       }
     },
-    [zoomToRect],
+    [zoomToRect, resetView],
   );
 
   // ─── Escape key ──────────────────────────────────────

@@ -9,6 +9,7 @@ export interface PanelSectionSummary {
   heightMm: number | null;
   dzusSizes: string | null;
   dimensionNotes: string | null;
+  owned: boolean;
   buildStatus: string;
   onboardedAt: string | null;
   sourceMsn: string | null;

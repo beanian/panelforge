@@ -8,6 +8,7 @@ export {
   createPinAssignmentSchema,
   updatePinAssignmentSchema,
   bulkUpdatePinAssignmentSchema,
+  createPanelSectionSchema,
   updatePanelSectionSchema,
   createMosfetBoardSchema,
   updateMosfetBoardSchema,

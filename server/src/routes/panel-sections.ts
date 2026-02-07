@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../lib/async-handler';
 import { validate } from '../lib/validation';
-import { updatePanelSectionSchema } from '../lib/schemas';
+import { createPanelSectionSchema, updatePanelSectionSchema } from '../lib/schemas';
 import { panelSectionService } from '../services/panel-section.service';
 
 export const panelSectionRoutes = Router();
@@ -24,6 +24,16 @@ panelSectionRoutes.get(
   }),
 );
 
+// POST /api/panel-sections — create a new section
+panelSectionRoutes.post(
+  '/',
+  validate(createPanelSectionSchema),
+  asyncHandler(async (req, res) => {
+    const section = await panelSectionService.create(req.body);
+    res.status(201).json(section);
+  }),
+);
+
 // GET /api/panel-sections/:id — get section with full details
 panelSectionRoutes.get(
   '/:id',
@@ -40,5 +50,14 @@ panelSectionRoutes.patch(
   asyncHandler(async (req, res) => {
     const section = await panelSectionService.update(req.params.id, req.body);
     res.json(section);
+  }),
+);
+
+// DELETE /api/panel-sections/:id — delete an empty section
+panelSectionRoutes.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    await panelSectionService.delete(req.params.id);
+    res.status(204).end();
   }),
 );

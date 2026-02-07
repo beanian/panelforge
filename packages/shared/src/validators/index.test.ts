@@ -7,6 +7,7 @@ import {
   createJournalEntrySchema,
   createMosfetBoardSchema,
   createMobiFlightMappingSchema,
+  createPanelSectionSchema,
   updatePanelSectionSchema,
   pinAssignmentFiltersSchema,
   createComponentInstanceSchema,
@@ -48,6 +49,17 @@ describe('createComponentTypeSchema', () => {
     expect(result.defaultPowerRail).toBe('NONE');
     expect(result.defaultPinMode).toBe('INPUT');
     expect(result.pwmRequired).toBe(false);
+    expect(result.requiresMosfet).toBe(false);
+  });
+
+  it('defaults requiresMosfet to false', () => {
+    const result = createComponentTypeSchema.parse(valid);
+    expect(result.requiresMosfet).toBe(false);
+  });
+
+  it('accepts requiresMosfet true', () => {
+    const result = createComponentTypeSchema.parse({ ...valid, requiresMosfet: true });
+    expect(result.requiresMosfet).toBe(true);
   });
 
   it('validates pinTypesRequired enum', () => {
@@ -395,6 +407,54 @@ describe('updateComponentInstanceSchema', () => {
   it('rejects map coordinates out of range', () => {
     expect(updateComponentInstanceSchema.safeParse({ mapX: -1 }).success).toBe(false);
     expect(updateComponentInstanceSchema.safeParse({ mapX: 101 }).success).toBe(false);
+  });
+});
+
+describe('createPanelSectionSchema', () => {
+  const valid = { name: 'Fire Panel', slug: 'fire-panel' };
+
+  it('accepts valid section with defaults', () => {
+    const result = createPanelSectionSchema.parse(valid);
+    expect(result.owned).toBe(false);
+    expect(result.sortOrder).toBe(0);
+  });
+
+  it('accepts full input', () => {
+    const result = createPanelSectionSchema.safeParse({
+      ...valid,
+      widthMm: 150,
+      heightMm: 200,
+      dzusSizes: '6-32',
+      sourceMsn: 'E2001',
+      owned: true,
+      sortOrder: 5,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects empty name', () => {
+    const result = createPanelSectionSchema.safeParse({ ...valid, name: '' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects invalid slug (uppercase)', () => {
+    const result = createPanelSectionSchema.safeParse({ ...valid, slug: 'Fire-Panel' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects invalid slug (spaces)', () => {
+    const result = createPanelSectionSchema.safeParse({ ...valid, slug: 'fire panel' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing name', () => {
+    const result = createPanelSectionSchema.safeParse({ slug: 'fire-panel' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects missing slug', () => {
+    const result = createPanelSectionSchema.safeParse({ name: 'Fire Panel' });
+    expect(result.success).toBe(false);
   });
 });
 

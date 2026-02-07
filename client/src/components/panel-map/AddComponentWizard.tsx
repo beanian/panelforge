@@ -88,7 +88,8 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
   const selectedType = componentTypes?.find((ct) => ct.id === componentTypeId);
   const selectedBoard = boards?.find((b) => b.id === boardId);
-  const showMosfetStep = selectedType?.pwmRequired || selectedType?.defaultPinMode === 'PWM';
+  const showMosfetStep = selectedType?.requiresMosfet || selectedType?.pwmRequired || selectedType?.defaultPinMode === 'PWM';
+  const mosfetRequired = selectedType?.requiresMosfet ?? false;
   const totalSteps = showMosfetStep ? 3 : 2;
 
   // Compute available pins for the selected board
@@ -201,6 +202,8 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
   const canProceedStep0 = name.trim() && componentTypeId && panelSectionId;
   const hasPinConfig = boardId && pins.some((p) => p.pinNumber);
+  const mosfetReady = !mosfetRequired || mosfetChannelId !== '';
+  const pinReady = !mosfetRequired || hasPinConfig;
 
   async function handleCreate() {
     if (!canProceedStep0) return;
@@ -431,7 +434,9 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
             )}
 
             <p className="text-xs text-muted-foreground">
-              Pin wiring is optional — you can configure this later.
+              {mosfetRequired
+                ? 'Pin wiring is required — the MOSFET channel will be linked to this pin.'
+                : 'Pin wiring is optional — you can configure this later.'}
             </p>
           </div>
         )}
@@ -474,7 +479,9 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
             )}
 
             <p className="text-xs text-muted-foreground">
-              MOSFET connection is optional — you can configure this later.
+              {mosfetRequired
+                ? 'MOSFET connection is required for this component type.'
+                : 'MOSFET connection is optional — you can configure this later.'}
             </p>
           </div>
         )}
@@ -490,7 +497,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
           <div className="flex gap-2">
             {step < totalSteps - 1 ? (
               <>
-                {step > 0 && (
+                {step > 0 && !mosfetRequired && (
                   <Button
                     variant="outline"
                     onClick={() => setStep(totalSteps - 1)}
@@ -501,7 +508,10 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                 )}
                 <Button
                   onClick={() => setStep(step + 1)}
-                  disabled={step === 0 && !canProceedStep0}
+                  disabled={
+                    (step === 0 && !canProceedStep0) ||
+                    (step === 1 && mosfetRequired && !hasPinConfig)
+                  }
                 >
                   Next
                 </Button>
@@ -511,7 +521,10 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                 <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={submitting}>
                   Cancel
                 </Button>
-                <Button onClick={handleCreate} disabled={!canProceedStep0 || submitting}>
+                <Button
+                  onClick={handleCreate}
+                  disabled={!canProceedStep0 || !mosfetReady || !pinReady || submitting}
+                >
                   {submitting ? 'Creating...' : 'Create Component'}
                 </Button>
               </>

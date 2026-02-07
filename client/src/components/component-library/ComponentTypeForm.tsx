@@ -47,6 +47,7 @@ export function ComponentTypeForm({
   const [defaultPowerRail, setDefaultPowerRail] = useState('FIVE_V');
   const [defaultPinMode, setDefaultPinMode] = useState('INPUT');
   const [pwmRequired, setPwmRequired] = useState(false);
+  const [requiresMosfet, setRequiresMosfet] = useState(false);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export function ComponentTypeForm({
         setDefaultPowerRail(componentType.defaultPowerRail);
         setDefaultPinMode(componentType.defaultPinMode);
         setPwmRequired(componentType.pwmRequired);
+        setRequiresMosfet(componentType.requiresMosfet);
         setNotes(componentType.notes ?? '');
       } else {
         setName('');
@@ -68,6 +70,7 @@ export function ComponentTypeForm({
         setDefaultPowerRail('FIVE_V');
         setDefaultPinMode('INPUT');
         setPwmRequired(false);
+        setRequiresMosfet(false);
         setNotes('');
       }
     }
@@ -90,6 +93,7 @@ export function ComponentTypeForm({
       defaultPowerRail,
       defaultPinMode,
       pwmRequired,
+      requiresMosfet,
       notes: notes.trim() || null,
     };
 
@@ -223,6 +227,18 @@ export function ComponentTypeForm({
               className="size-4 rounded border-input accent-primary"
             />
             <Label htmlFor="ct-pwm">PWM Required</Label>
+          </div>
+
+          {/* Requires MOSFET */}
+          <div className="flex items-center gap-2">
+            <input
+              id="ct-mosfet"
+              type="checkbox"
+              checked={requiresMosfet}
+              onChange={(e) => setRequiresMosfet(e.target.checked)}
+              className="size-4 rounded border-input accent-primary"
+            />
+            <Label htmlFor="ct-mosfet">Requires MOSFET</Label>
           </div>
 
           {/* Notes */}

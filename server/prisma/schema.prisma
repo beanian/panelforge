@@ -83,6 +83,7 @@ model PanelSection {
   dimensionNotes     String?
   buildStatus        BuildStatus         @default(NOT_ONBOARDED)
   onboardedAt        DateTime?
+  owned              Boolean             @default(false)
   sourceMsn          String?
   aircraftVariant    String?
   registration       String?
@@ -110,6 +111,7 @@ model ComponentType {
   defaultPowerRail   PowerRail           @default(NONE)
   defaultPinMode     PinMode             @default(INPUT)
   pwmRequired        Boolean             @default(false)
+  requiresMosfet     Boolean             @default(false)
   mobiFlightTemplate Json?
   notes              String?
   createdAt          DateTime            @default(now())

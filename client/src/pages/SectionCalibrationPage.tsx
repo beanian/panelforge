@@ -27,7 +27,7 @@ export default function SectionCalibrationPage() {
         </div>
 
         {/* Main: calibration canvas */}
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-hidden">
           <SectionCalibrationCanvas
             sections={sections}
             selectedSectionId={selectedSectionId}

@@ -137,6 +137,7 @@ async function main() {
       pinTypesRequired: [PinType.DIGITAL],
       defaultPowerRail: PowerRail.TWENTY_SEVEN_V,
       defaultPinMode: PinMode.OUTPUT,
+      requiresMosfet: true,
     },
     {
       name: 'Toggle Switch',
@@ -212,37 +213,7 @@ async function main() {
   });
   console.log('  ✓ Board Alpha');
 
-  // ─── MOSFET Boards ─────────────────────────────────────
-  const mosfetBoards = [
-    { name: 'MOSFET-1', channelCount: 8, notes: 'Primary MOSFET board for 27/28V outputs' },
-    { name: 'MOSFET-2', channelCount: 8, notes: 'Secondary MOSFET board for 27/28V outputs' },
-  ];
-
-  for (const mb of mosfetBoards) {
-    const board = await prisma.mosfetBoard.upsert({
-      where: { name: mb.name },
-      update: mb,
-      create: mb,
-    });
-
-    // Create channels for each MOSFET board
-    for (let ch = 1; ch <= mb.channelCount; ch++) {
-      await prisma.mosfetChannel.upsert({
-        where: {
-          mosfetBoardId_channelNumber: {
-            mosfetBoardId: board.id,
-            channelNumber: ch,
-          },
-        },
-        update: {},
-        create: {
-          mosfetBoardId: board.id,
-          channelNumber: ch,
-        },
-      });
-    }
-  }
-  console.log(`  ✓ ${mosfetBoards.length} MOSFET boards (${mosfetBoards.reduce((s, b) => s + b.channelCount, 0)} channels)`);
+  // MOSFET boards are created via the UI (8 channels each)
 
   console.log('\nSeed complete!');
 }

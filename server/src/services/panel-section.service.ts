@@ -144,9 +144,30 @@ export const panelSectionService = {
     });
   },
 
+  async create(data: {
+    name: string;
+    slug: string;
+    widthMm?: number | null;
+    heightMm?: number | null;
+    dzusSizes?: string | null;
+    dimensionNotes?: string | null;
+    sourceMsn?: string | null;
+    owned?: boolean;
+    sortOrder?: number;
+  }) {
+    return prisma.panelSection.create({ data: data as any });
+  },
+
   async update(
     id: string,
     data: {
+      name?: string;
+      slug?: string;
+      widthMm?: number | null;
+      heightMm?: number | null;
+      dzusSizes?: string | null;
+      owned?: boolean;
+      sortOrder?: number;
       buildStatus?: string;
       sourceMsn?: string;
       aircraftVariant?: string;
@@ -166,5 +187,19 @@ export const panelSectionService = {
     }
 
     return prisma.panelSection.update({ where: { id }, data: data as any });
+  },
+
+  async delete(id: string) {
+    const section = await prisma.panelSection.findUnique({
+      where: { id },
+      include: { _count: { select: { componentInstances: true } } },
+    });
+    if (!section) {
+      throw new AppError(404, 'Panel section not found');
+    }
+    if (section._count.componentInstances > 0) {
+      throw new AppError(409, 'Cannot delete section with components');
+    }
+    await prisma.panelSection.delete({ where: { id } });
   },
 };

@@ -41,6 +41,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { InlineEdit } from '@/components/pin-manager/InlineEdit';
 
 import { useBoards, useCreateBoard, type Board } from '@/hooks/use-boards';
+import { useMosfetBoards, useCreateMosfetBoard } from '@/hooks/use-mosfet-boards';
 import {
   usePinAssignments,
   useUpdatePinAssignment,
@@ -184,11 +185,78 @@ function AddBoardDialog() {
   );
 }
 
+// --- Add MOSFET Board Dialog ---
+
+function AddMosfetBoardDialog() {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const createMosfetBoard = useCreateMosfetBoard();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    createMosfetBoard.mutate(
+      { name: name.trim() },
+      {
+        onSuccess: () => {
+          toast.success(`MOSFET board "${name.trim()}" created`);
+          setName('');
+          setOpen(false);
+        },
+        onError: (err) => {
+          toast.error(`Failed to create MOSFET board: ${err.message}`);
+        },
+      }
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Plus />
+          Add MOSFET Board
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>Add MOSFET Board</DialogTitle>
+            <DialogDescription>
+              Create a new 8-channel MOSFET driver board.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="mosfet-name">Board Name</Label>
+            <Input
+              id="mosfet-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder='e.g. "MOSFET Alpha"'
+              className="mt-1.5"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="submit"
+              disabled={!name.trim() || createMosfetBoard.isPending}
+            >
+              {createMosfetBoard.isPending ? 'Creating...' : 'Create MOSFET Board'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // --- Main page ---
 
 export default function PinManagerPage() {
   // Board selection
   const { data: boards = [], isLoading: boardsLoading } = useBoards();
+  const { data: mosfetBoards = [] } = useMosfetBoards();
   const [selectedBoardId, setSelectedBoardId] = useState<string | undefined>();
 
   // Resolve selected board (default to first)
@@ -303,8 +371,29 @@ export default function PinManagerPage() {
             Manage Arduino Mega pin assignments across boards
           </p>
         </div>
-        <AddBoardDialog />
+        <div className="flex gap-2">
+          <AddMosfetBoardDialog />
+          <AddBoardDialog />
+        </div>
       </div>
+
+      {/* MOSFET Board Summary */}
+      {mosfetBoards.length > 0 && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-sm font-medium text-muted-foreground">MOSFET Boards:</span>
+          {mosfetBoards.map((mb) => (
+            <div
+              key={mb.id}
+              className="inline-flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-1.5"
+            >
+              <span className="text-sm font-medium">{mb.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {mb.usedChannels}/{mb.channelCount} used
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Board Tabs */}
       {boardsLoading ? (

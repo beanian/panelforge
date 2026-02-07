@@ -22,7 +22,10 @@ interface SectionOverlayProps {
 }
 
 export function SectionOverlay({ section, onZoomToSection }: SectionOverlayProps) {
-  const style = STATUS_STYLES[section.buildStatus] ?? STATUS_STYLES.NOT_ONBOARDED;
+  const isEmpty = section.componentCount === 0;
+  const style = isEmpty
+    ? { fill: 'bg-gray-900/40', border: 'border-gray-600/30' }
+    : (STATUS_STYLES[section.buildStatus] ?? STATUS_STYLES.NOT_ONBOARDED);
   const progressColor = PROGRESS_COLORS[section.buildStatus] ?? PROGRESS_COLORS.NOT_ONBOARDED;
 
   function handleClick(e: React.MouseEvent) {
@@ -44,7 +47,11 @@ export function SectionOverlay({ section, onZoomToSection }: SectionOverlayProps
     >
       {/* Section name label — clickable, sits above component hotspots */}
       <span
-        className="absolute top-0.5 left-0.5 text-[9px] leading-none bg-slate-800/60 backdrop-blur-sm px-1 py-0.5 rounded text-slate-300/70 hover:text-slate-200 transition-colors whitespace-nowrap pointer-events-auto cursor-zoom-in"
+        className={`absolute top-0.5 left-0.5 text-[9px] leading-none backdrop-blur-sm px-1 py-0.5 rounded transition-colors whitespace-nowrap pointer-events-auto cursor-zoom-in ${
+          isEmpty
+            ? 'bg-slate-800/40 text-slate-500/60 hover:text-slate-400'
+            : 'bg-slate-800/60 text-slate-300/70 hover:text-slate-200'
+        }`}
         onClick={handleClick}
       >
         {section.name}

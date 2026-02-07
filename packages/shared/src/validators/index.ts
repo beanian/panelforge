@@ -20,6 +20,7 @@ export const createComponentTypeSchema = z.object({
   defaultPowerRail: z.enum(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE']).default('NONE'),
   defaultPinMode: z.enum(['INPUT', 'OUTPUT', 'PWM']).default('INPUT'),
   pwmRequired: z.boolean().default(false),
+  requiresMosfet: z.boolean().default(false),
   mobiFlightTemplate: z.unknown().optional(),
   notes: z.string().nullable().optional(),
 });
@@ -88,7 +89,26 @@ export const bulkUpdatePinAssignmentSchema = z.object({
 
 // ─── Panel Section ──────────────────────────────────────
 
+export const createPanelSectionSchema = z.object({
+  name: z.string().min(1).max(100),
+  slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/),
+  widthMm: z.number().positive().nullable().optional(),
+  heightMm: z.number().positive().nullable().optional(),
+  dzusSizes: z.string().nullable().optional(),
+  dimensionNotes: z.string().nullable().optional(),
+  sourceMsn: z.string().nullable().optional(),
+  owned: z.boolean().default(false),
+  sortOrder: z.number().int().default(0),
+});
+
 export const updatePanelSectionSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  slug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/).optional(),
+  widthMm: z.number().positive().nullable().optional(),
+  heightMm: z.number().positive().nullable().optional(),
+  dzusSizes: z.string().nullable().optional(),
+  owned: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
   buildStatus: z
     .enum(['NOT_ONBOARDED', 'PLANNED', 'IN_PROGRESS', 'COMPLETE', 'HAS_ISSUES'])
     .optional(),
