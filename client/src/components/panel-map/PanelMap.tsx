@@ -1,8 +1,9 @@
 import { useRef, useState, useCallback, type RefObject } from 'react';
-import { Plus, Copy, Trash2, Settings2, Activity } from 'lucide-react';
+import { Plus, Copy, Trash2, Settings2, Activity, LayoutGrid } from 'lucide-react';
 import { type MapComponent } from '@/hooks/use-component-map-data';
 import { usePercentCoords } from '@/lib/use-percent-coords';
 import { ComponentHotspot } from './ComponentHotspot';
+import { SectionOverlayLayer } from './SectionOverlayLayer';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -98,6 +99,9 @@ interface PanelMapProps {
   onQuickStatus: (id: string, status: string) => void;
   onToggleConfigureMode: () => void;
   onDrawComplete: (box: BoundingBox) => void;
+  // Section overlays
+  showSectionOverlays?: boolean;
+  onSectionClick?: (id: string) => void;
   // Zoom + pan
   panZoomStyle?: React.CSSProperties;
   panZoomContainerProps?: Record<string, any>;
@@ -119,6 +123,8 @@ export function PanelMap({
   onQuickStatus,
   onToggleConfigureMode,
   onDrawComplete,
+  showSectionOverlays,
+  onSectionClick,
   panZoomStyle,
   panZoomContainerProps,
   scale = 1,
@@ -242,6 +248,11 @@ export function PanelMap({
                 draggable={false}
               />
 
+              {/* Section overlays (behind hotspots) */}
+              {showSectionOverlays && (
+                <SectionOverlayLayer visible onSectionClick={onSectionClick} />
+              )}
+
               {/* Hotspot overlay container */}
               <div className="absolute inset-0">
                 {isLoading ? (
@@ -307,6 +318,13 @@ export function PanelMap({
                 <Copy className="size-4" />
                 Copy Component
               </ContextMenuItem>
+
+              {onSectionClick && clickedComponent.panelSection?.id && (
+                <ContextMenuItem onClick={() => onSectionClick(clickedComponent.panelSection.id)}>
+                  <LayoutGrid className="size-4" />
+                  View Section
+                </ContextMenuItem>
+              )}
 
               <ContextMenuItem
                 variant="destructive"

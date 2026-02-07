@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Wand2 } from 'lucide-react';
 import {
@@ -47,10 +47,11 @@ interface AddComponentWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   boundingBox: BoundingBox;
+  defaultPanelSectionId?: string;
   onCreated: (id: string) => void;
 }
 
-export function AddComponentWizard({ open, onOpenChange, boundingBox, onCreated }: AddComponentWizardProps) {
+export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPanelSectionId, onCreated }: AddComponentWizardProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,6 +78,13 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, onCreated 
   const createInstance = useCreateComponentInstance();
   const createPin = useCreatePinAssignment();
   const updatePin = useUpdatePinAssignment();
+
+  // Pre-fill panel section when a default is provided
+  useEffect(() => {
+    if (open && defaultPanelSectionId) {
+      setPanelSectionId(defaultPanelSectionId);
+    }
+  }, [open, defaultPanelSectionId]);
 
   const selectedType = componentTypes?.find((ct) => ct.id === componentTypeId);
   const selectedBoard = boards?.find((b) => b.id === boardId);

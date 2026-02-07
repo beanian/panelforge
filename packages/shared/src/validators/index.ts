@@ -98,6 +98,10 @@ export const updatePanelSectionSchema = z.object({
   lineageNotes: z.string().nullable().optional(),
   lineageUrls: z.array(z.string().url()).optional(),
   dimensionNotes: z.string().nullable().optional(),
+  svgX: z.number().min(0).max(100).nullable().optional(),
+  svgY: z.number().min(0).max(100).nullable().optional(),
+  svgWidth: z.number().min(0).max(100).nullable().optional(),
+  svgHeight: z.number().min(0).max(100).nullable().optional(),
 });
 
 // ─── MOSFET Board ───────────────────────────────────────

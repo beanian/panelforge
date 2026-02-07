@@ -154,6 +154,10 @@ export const panelSectionService = {
       lineageNotes?: string;
       lineageUrls?: string[];
       dimensionNotes?: string;
+      svgX?: number | null;
+      svgY?: number | null;
+      svgWidth?: number | null;
+      svgHeight?: number | null;
     },
   ) {
     const section = await prisma.panelSection.findUnique({ where: { id } });

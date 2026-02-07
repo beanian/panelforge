@@ -11,7 +11,7 @@ export interface MapComponent {
   mapWidth: number;
   mapHeight: number;
   componentType: { name: string; defaultPinCount: number };
-  panelSection: { name: string };
+  panelSection: { id: string; name: string };
   _count: { pinAssignments: number };
 }
 

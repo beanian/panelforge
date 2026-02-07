@@ -253,6 +253,33 @@ describe('updatePanelSectionSchema', () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it('accepts valid svg coordinates', () => {
+    const result = updatePanelSectionSchema.safeParse({
+      svgX: 10.5,
+      svgY: 20.3,
+      svgWidth: 30,
+      svgHeight: 15.7,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts null svg coordinates (unmapping)', () => {
+    const result = updatePanelSectionSchema.safeParse({
+      svgX: null,
+      svgY: null,
+      svgWidth: null,
+      svgHeight: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects svg coordinates out of range', () => {
+    expect(updatePanelSectionSchema.safeParse({ svgX: -1 }).success).toBe(false);
+    expect(updatePanelSectionSchema.safeParse({ svgX: 101 }).success).toBe(false);
+    expect(updatePanelSectionSchema.safeParse({ svgY: -0.1 }).success).toBe(false);
+    expect(updatePanelSectionSchema.safeParse({ svgWidth: 200 }).success).toBe(false);
+  });
 });
 
 describe('pinAssignmentFiltersSchema', () => {

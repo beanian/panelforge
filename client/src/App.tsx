@@ -11,6 +11,7 @@ import WiringDiagramPage from '@/pages/WiringDiagramPage';
 import JournalPage from '@/pages/JournalPage';
 import ReferencePage from '@/pages/ReferencePage';
 import CalibrationToolPage from '@/pages/CalibrationToolPage';
+import SectionCalibrationPage from '@/pages/SectionCalibrationPage';
 
 function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
@@ -47,6 +48,7 @@ export default function App() {
           <NavItem to="/journal">Journal</NavItem>
           <NavItem to="/reference">Reference</NavItem>
           <NavItem to="/calibrate">Calibrate Map</NavItem>
+          <NavItem to="/calibrate-sections">Calibrate Sections</NavItem>
         </nav>
         <main className="flex-1 overflow-auto p-6">
           <Routes>
@@ -61,6 +63,7 @@ export default function App() {
             <Route path="/journal" element={<JournalPage />} />
             <Route path="/reference" element={<ReferencePage />} />
             <Route path="/calibrate" element={<CalibrationToolPage />} />
+            <Route path="/calibrate-sections" element={<SectionCalibrationPage />} />
           </Routes>
         </main>
       </div>

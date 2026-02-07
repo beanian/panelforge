@@ -61,7 +61,7 @@ export const componentInstanceService = {
           select: { name: true, defaultPinCount: true },
         },
         panelSection: {
-          select: { name: true },
+          select: { id: true, name: true },
         },
         _count: { select: { pinAssignments: true } },
       },

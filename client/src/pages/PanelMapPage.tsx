@@ -8,11 +8,13 @@ import { SectionFlyout } from '@/components/panel-map/SectionFlyout';
 import { AddComponentWizard } from '@/components/panel-map/AddComponentWizard';
 import { usePanZoom } from '@/lib/use-pan-zoom';
 import { api } from '@/lib/api';
+import { usePanelSectionSummary } from '@/hooks/use-panel-section-summary';
 import { Button } from '@/components/ui/button';
 
 export default function PanelMapPage() {
   const queryClient = useQueryClient();
   const { data: components, isLoading, error } = useComponentMapData();
+  const { data: sectionSummaries } = usePanelSectionSummary();
 
   // Flyout state
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
@@ -21,11 +23,13 @@ export default function PanelMapPage() {
   const [sectionFlyoutOpen, setSectionFlyoutOpen] = useState(false);
 
   // Feature state
+  const [showSectionOverlays, setShowSectionOverlays] = useState(true);
   const [configureMode, setConfigureMode] = useState(false);
   const [drawingBox, setDrawingBox] = useState(false);
   const [drawnBox, setDrawnBox] = useState<BoundingBox | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [copySourceId, setCopySourceId] = useState<string | null>(null);
+  const [defaultSectionId, setDefaultSectionId] = useState<string | null>(null);
 
   // Zoom + Pan
   const { scale, translateX, translateY, containerProps: panZoomContainerProps, style: panZoomStyle, setContainerRef, resetView } = usePanZoom();
@@ -107,11 +111,25 @@ export default function PanelMapPage() {
         return;
       }
 
-      // Normal add flow: open wizard
+      // Normal add flow: detect section from box center, open wizard
       setDrawnBox(box);
       setWizardOpen(true);
+      const centerX = box.mapX + box.mapWidth / 2;
+      const centerY = box.mapY + box.mapHeight / 2;
+      const matched = sectionSummaries?.find(
+        (s) =>
+          s.svgX != null &&
+          s.svgY != null &&
+          s.svgWidth != null &&
+          s.svgHeight != null &&
+          centerX >= s.svgX &&
+          centerX <= s.svgX + s.svgWidth &&
+          centerY >= s.svgY &&
+          centerY <= s.svgY + s.svgHeight,
+      );
+      setDefaultSectionId(matched?.id ?? null);
     },
-    [copySourceId, queryClient],
+    [copySourceId, queryClient, sectionSummaries],
   );
 
   const handleWizardCreated = useCallback((id: string) => {
@@ -185,11 +203,20 @@ export default function PanelMapPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Overhead Panel</h1>
-        <p className="text-sm text-muted-foreground">
-          Right-click to add, copy, or configure components. Ctrl+scroll to zoom, middle-click to pan.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Overhead Panel</h1>
+          <p className="text-sm text-muted-foreground">
+            Right-click to add, copy, or configure components. Ctrl+scroll to zoom, middle-click to pan.
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowSectionOverlays((prev) => !prev)}
+        >
+          {showSectionOverlays ? 'Hide Sections' : 'Show Sections'}
+        </Button>
       </div>
 
       {/* Mode banners */}
@@ -235,6 +262,8 @@ export default function PanelMapPage() {
         onQuickStatus={handleQuickStatus}
         onToggleConfigureMode={handleToggleConfigureMode}
         onDrawComplete={handleDrawComplete}
+        showSectionOverlays={showSectionOverlays}
+        onSectionClick={handleViewSection}
         panZoomStyle={panZoomStyle}
         panZoomContainerProps={panZoomContainerProps}
         scale={scale}
@@ -256,9 +285,13 @@ export default function PanelMapPage() {
           open={wizardOpen}
           onOpenChange={(open) => {
             setWizardOpen(open);
-            if (!open) setDrawnBox(null);
+            if (!open) {
+              setDrawnBox(null);
+              setDefaultSectionId(null);
+            }
           }}
           boundingBox={drawnBox}
+          defaultPanelSectionId={defaultSectionId ?? undefined}
           onCreated={handleWizardCreated}
         />
       )}
