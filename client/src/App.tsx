@@ -3,6 +3,8 @@ import { Toaster } from '@/components/ui/sonner';
 import PanelMapPage from '@/pages/PanelMapPage';
 import ComponentLibraryPage from '@/pages/ComponentLibraryPage';
 import PinManagerPage from '@/pages/PinManagerPage';
+import BuildProgressPage from '@/pages/BuildProgressPage';
+import PowerBudgetPage from '@/pages/PowerBudgetPage';
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -47,8 +49,8 @@ export default function App() {
           <NavItem to="/">Panel Map</NavItem>
           <NavItem to="/pins">Pin Manager</NavItem>
           <NavItem to="/components">Component Library</NavItem>
-          <NavItem to="/power" disabled>Power Budget</NavItem>
-          <NavItem to="/progress" disabled>Build Progress</NavItem>
+          <NavItem to="/power">Power Budget</NavItem>
+          <NavItem to="/progress">Build Progress</NavItem>
           <NavItem to="/wiring" disabled>Wiring Diagram</NavItem>
           <NavItem to="/mobiflight" disabled>MobiFlight</NavItem>
           <NavItem to="/bom" disabled>BOM Generator</NavItem>
@@ -60,8 +62,8 @@ export default function App() {
             <Route path="/" element={<PanelMapPage />} />
             <Route path="/pins" element={<PinManagerPage />} />
             <Route path="/components" element={<ComponentLibraryPage />} />
-            <Route path="/power" element={<PlaceholderPage title="Power Budget — Coming Soon" />} />
-            <Route path="/progress" element={<PlaceholderPage title="Build Progress — Coming Soon" />} />
+            <Route path="/power" element={<PowerBudgetPage />} />
+            <Route path="/progress" element={<BuildProgressPage />} />
             <Route path="/wiring" element={<PlaceholderPage title="Wiring Diagram — Coming Soon" />} />
             <Route path="/mobiflight" element={<PlaceholderPage title="MobiFlight Export — Coming Soon" />} />
             <Route path="/bom" element={<PlaceholderPage title="BOM Generator — Coming Soon" />} />

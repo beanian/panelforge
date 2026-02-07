@@ -10,6 +10,8 @@ import { powerBudgetRoutes } from './power-budget';
 import { mobiFlightRoutes } from './mobiflight';
 import { bomRoutes } from './bom';
 import { wiringDiagramRoutes } from './wiring-diagram';
+import { journalRoutes } from './journal';
+import { exportRoutes, importRoutes } from './export';
 
 export const routes = Router();
 
@@ -24,3 +26,6 @@ routes.use('/power-budget', powerBudgetRoutes);
 routes.use('/mobiflight', mobiFlightRoutes);
 routes.use('/bom', bomRoutes);
 routes.use('/wiring-diagram', wiringDiagramRoutes);
+routes.use('/journal', journalRoutes);
+routes.use('/export', exportRoutes);
+routes.use('/import', importRoutes);

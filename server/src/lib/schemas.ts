@@ -12,4 +12,6 @@ export {
   createMosfetBoardSchema,
   updateMosfetBoardSchema,
   pinAssignmentFiltersSchema,
+  createJournalEntrySchema,
+  updateJournalEntrySchema,
 } from '../../../packages/shared/src/validators';
