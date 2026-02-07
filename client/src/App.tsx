@@ -8,24 +8,10 @@ import PowerBudgetPage from '@/pages/PowerBudgetPage';
 import MobiFlightPage from '@/pages/MobiFlightPage';
 import BomGeneratorPage from '@/pages/BomGeneratorPage';
 import WiringDiagramPage from '@/pages/WiringDiagramPage';
+import JournalPage from '@/pages/JournalPage';
+import ReferencePage from '@/pages/ReferencePage';
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <h1 className="text-2xl font-semibold text-muted-foreground">{title}</h1>
-    </div>
-  );
-}
-
-function NavItem({ to, children, disabled }: { to: string; children: React.ReactNode; disabled?: boolean }) {
-  if (disabled) {
-    return (
-      <span className="px-2 py-1.5 rounded-md text-sm text-muted-foreground cursor-not-allowed">
-        {children}
-      </span>
-    );
-  }
-
+function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
   return (
     <NavLink
       to={to}
@@ -57,8 +43,8 @@ export default function App() {
           <NavItem to="/wiring">Wiring Diagram</NavItem>
           <NavItem to="/mobiflight">MobiFlight</NavItem>
           <NavItem to="/bom">BOM Generator</NavItem>
-          <NavItem to="/journal" disabled>Journal</NavItem>
-          <NavItem to="/reference" disabled>Reference</NavItem>
+          <NavItem to="/journal">Journal</NavItem>
+          <NavItem to="/reference">Reference</NavItem>
         </nav>
         <main className="flex-1 overflow-auto p-6">
           <Routes>
@@ -70,8 +56,8 @@ export default function App() {
             <Route path="/wiring" element={<WiringDiagramPage />} />
             <Route path="/mobiflight" element={<MobiFlightPage />} />
             <Route path="/bom" element={<BomGeneratorPage />} />
-            <Route path="/journal" element={<PlaceholderPage title="Journal — Coming Soon" />} />
-            <Route path="/reference" element={<PlaceholderPage title="Reference — Coming Soon" />} />
+            <Route path="/journal" element={<JournalPage />} />
+            <Route path="/reference" element={<ReferencePage />} />
           </Routes>
         </main>
       </div>
