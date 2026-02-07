@@ -49,8 +49,12 @@ export interface ComponentInstanceDetail {
   };
   pinAssignments: {
     id: string;
+    pinNumber: string;
     pinType: string;
+    pinMode: string;
     powerRail: string;
+    wiringStatus: string;
+    board: { id: string; name: string };
   }[];
 }
 

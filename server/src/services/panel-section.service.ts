@@ -42,9 +42,14 @@ export const panelSectionService = {
             pinAssignments: {
               select: {
                 id: true,
+                pinNumber: true,
                 pinType: true,
+                pinMode: true,
                 powerRail: true,
+                wiringStatus: true,
+                board: { select: { id: true, name: true } },
               },
+              orderBy: { pinNumber: 'asc' },
             },
           },
           orderBy: { sortOrder: 'asc' },

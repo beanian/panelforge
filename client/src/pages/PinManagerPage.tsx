@@ -207,10 +207,10 @@ export default function PinManagerPage() {
 
   const hasFilters =
     debouncedSearch ||
-    panelSectionFilter ||
-    powerRailFilter ||
-    wiringStatusFilter ||
-    assignedFilter;
+    (panelSectionFilter && panelSectionFilter !== 'all') ||
+    (powerRailFilter && powerRailFilter !== 'all') ||
+    (wiringStatusFilter && wiringStatusFilter !== 'all') ||
+    (assignedFilter && assignedFilter !== 'all');
 
   const clearFilters = () => {
     setSearchInput('');
@@ -224,10 +224,10 @@ export default function PinManagerPage() {
   const { data: panelSections = [] } = usePanelSections();
   const { data: pins = [], isLoading: pinsLoading } = usePinAssignments({
     boardId: selectedBoard?.id,
-    panelSectionId: panelSectionFilter || undefined,
-    powerRail: powerRailFilter || undefined,
-    wiringStatus: wiringStatusFilter || undefined,
-    assigned: assignedFilter || undefined,
+    panelSectionId: panelSectionFilter && panelSectionFilter !== 'all' ? panelSectionFilter : undefined,
+    powerRail: powerRailFilter && powerRailFilter !== 'all' ? powerRailFilter : undefined,
+    wiringStatus: wiringStatusFilter && wiringStatusFilter !== 'all' ? wiringStatusFilter : undefined,
+    assigned: assignedFilter && assignedFilter !== 'all' ? assignedFilter : undefined,
     search: debouncedSearch || undefined,
   });
 

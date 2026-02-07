@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PlusIcon } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -7,6 +8,7 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,6 +20,7 @@ import {
   POWER_RAIL_COLORS,
   POWER_RAIL_LABELS,
 } from '@/lib/constants';
+import { AddComponentForm } from './AddComponentForm';
 
 const BUILD_STATUS_LABELS: Record<string, string> = {
   NOT_ONBOARDED: 'Not Onboarded',
@@ -100,27 +103,25 @@ function ComponentRow({ instance }: { instance: ComponentInstanceDetail }) {
               <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">
                 Pin Assignments
               </p>
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-col gap-1">
                 {instance.pinAssignments.map((pa) => (
-                  <span
+                  <div
                     key={pa.id}
-                    className="inline-flex items-center gap-1 rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300"
+                    className="flex items-center gap-2 rounded bg-slate-700/60 px-2 py-1 text-[11px] text-slate-300"
                   >
-                    {pa.pinType}
+                    <span className="font-mono font-medium text-slate-200">
+                      {pa.pinNumber}
+                    </span>
+                    <span className="text-slate-500">{pa.board.name}</span>
+                    <span className="text-slate-500">{pa.pinMode}</span>
                     {pa.powerRail !== 'NONE' && (
-                      <span
-                        className="inline-block w-1.5 h-1.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            pa.powerRail === 'FIVE_V'
-                              ? '#22c55e'
-                              : pa.powerRail === 'NINE_V'
-                                ? '#3b82f6'
-                                : '#f59e0b',
-                        }}
-                      />
+                      <Badge
+                        className={`${POWER_RAIL_COLORS[pa.powerRail] ?? 'bg-gray-400'} text-white border-transparent text-[9px] px-1 py-0`}
+                      >
+                        {POWER_RAIL_LABELS[pa.powerRail] ?? pa.powerRail}
+                      </Badge>
                     )}
-                  </span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -179,6 +180,7 @@ interface SectionFlyoutProps {
 
 export function SectionFlyout({ sectionId, open, onOpenChange }: SectionFlyoutProps) {
   const { data: section, isLoading, error } = usePanelSection(sectionId);
+  const [addFormOpen, setAddFormOpen] = useState(false);
 
   const statusKey = section?.buildStatus ?? 'NOT_ONBOARDED';
   const dimensions =
@@ -259,9 +261,20 @@ export function SectionFlyout({ sectionId, open, onOpenChange }: SectionFlyoutPr
 
               {/* Component list */}
               <div>
-                <p className="text-xs font-medium text-slate-300 mb-2">
-                  Components ({section.componentInstances.length})
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-slate-300">
+                    Components ({section.componentInstances.length})
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setAddFormOpen(true)}
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    Add
+                  </Button>
+                </div>
 
                 {section.componentInstances.length === 0 ? (
                   <p className="text-sm text-slate-500 italic">
@@ -297,6 +310,15 @@ export function SectionFlyout({ sectionId, open, onOpenChange }: SectionFlyoutPr
               )}
             </div>
           </>
+        )}
+
+        {section && (
+          <AddComponentForm
+            open={addFormOpen}
+            onOpenChange={setAddFormOpen}
+            panelSectionId={section.id}
+            sectionName={section.name}
+          />
         )}
       </SheetContent>
     </Sheet>
