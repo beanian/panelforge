@@ -180,7 +180,7 @@ describe('createJournalEntrySchema', () => {
 describe('createMosfetBoardSchema', () => {
   it('accepts valid input with defaults', () => {
     const result = createMosfetBoardSchema.parse({ name: 'MOSFET #1' });
-    expect(result.channelCount).toBe(16);
+    expect(result.channelCount).toBe(8);
   });
 
   it('rejects empty name', () => {
@@ -296,6 +296,38 @@ describe('createComponentInstanceSchema', () => {
     });
     expect(result.sortOrder).toBe(0);
   });
+
+  it('accepts optional map coordinates', () => {
+    const result = createComponentInstanceSchema.safeParse({
+      name: 'Switch',
+      componentTypeId: 'ct-1',
+      panelSectionId: 'sec-1',
+      mapX: 10.5,
+      mapY: 20.3,
+      mapWidth: 5.0,
+      mapHeight: 3.2,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects map coordinates out of range', () => {
+    expect(
+      createComponentInstanceSchema.safeParse({
+        name: 'Switch',
+        componentTypeId: 'ct-1',
+        panelSectionId: 'sec-1',
+        mapX: -1,
+      }).success,
+    ).toBe(false);
+    expect(
+      createComponentInstanceSchema.safeParse({
+        name: 'Switch',
+        componentTypeId: 'ct-1',
+        panelSectionId: 'sec-1',
+        mapX: 101,
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe('updateComponentInstanceSchema', () => {
@@ -312,6 +344,31 @@ describe('updateComponentInstanceSchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts valid map coordinates', () => {
+    const result = updateComponentInstanceSchema.safeParse({
+      mapX: 10.5,
+      mapY: 20.3,
+      mapWidth: 5.0,
+      mapHeight: 3.2,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts null map coordinates (unmapping)', () => {
+    const result = updateComponentInstanceSchema.safeParse({
+      mapX: null,
+      mapY: null,
+      mapWidth: null,
+      mapHeight: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects map coordinates out of range', () => {
+    expect(updateComponentInstanceSchema.safeParse({ mapX: -1 }).success).toBe(false);
+    expect(updateComponentInstanceSchema.safeParse({ mapX: 101 }).success).toBe(false);
+  });
 });
 
 describe('updatePinAssignmentSchema', () => {
@@ -326,6 +383,20 @@ describe('updatePinAssignmentSchema', () => {
   it('allows nullable componentInstanceId', () => {
     const result = updatePinAssignmentSchema.safeParse({
       componentInstanceId: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts mosfetChannelId', () => {
+    const result = updatePinAssignmentSchema.safeParse({
+      mosfetChannelId: 'channel-1',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts null mosfetChannelId', () => {
+    const result = updatePinAssignmentSchema.safeParse({
+      mosfetChannelId: null,
     });
     expect(result.success).toBe(true);
   });

@@ -8,6 +8,10 @@ interface CreateComponentInstanceData {
   powerRail?: string;
   notes?: string;
   sortOrder?: number;
+  mapX?: number;
+  mapY?: number;
+  mapWidth?: number;
+  mapHeight?: number;
 }
 
 export function useCreateComponentInstance() {
@@ -17,6 +21,8 @@ export function useCreateComponentInstance() {
       api.post('/component-instances', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['panel-sections'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances', 'map-data'] });
     },
   });
 }
@@ -27,6 +33,8 @@ export function useDeleteComponentInstance() {
     mutationFn: (id: string) => api.delete(`/component-instances/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['panel-sections'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances', 'map-data'] });
     },
   });
 }

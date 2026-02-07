@@ -17,9 +17,19 @@ componentInstanceRoutes.get(
       panelSectionId: req.query.panelSectionId as string | undefined,
       componentTypeId: req.query.componentTypeId as string | undefined,
       buildStatus: req.query.buildStatus as string | undefined,
+      mapped: req.query.mapped as string | undefined,
     };
     const instances = await componentInstanceService.findAll(filters);
     res.json(instances);
+  }),
+);
+
+// GET /api/component-instances/map-data — lightweight data for panel map overlay
+componentInstanceRoutes.get(
+  '/map-data',
+  asyncHandler(async (_req, res) => {
+    const data = await componentInstanceService.findMapData();
+    res.json(data);
   }),
 );
 

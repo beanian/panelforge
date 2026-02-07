@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "ComponentInstance" ADD COLUMN     "mapHeight" DOUBLE PRECISION,
+ADD COLUMN     "mapWidth" DOUBLE PRECISION,
+ADD COLUMN     "mapX" DOUBLE PRECISION,
+ADD COLUMN     "mapY" DOUBLE PRECISION;

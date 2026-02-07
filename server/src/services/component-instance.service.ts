@@ -6,6 +6,7 @@ interface ComponentInstanceFilters {
   panelSectionId?: string;
   componentTypeId?: string;
   buildStatus?: string;
+  mapped?: string;
 }
 
 export const componentInstanceService = {
@@ -21,12 +22,47 @@ export const componentInstanceService = {
     if (filters.buildStatus) {
       where.buildStatus = filters.buildStatus as any;
     }
+    if (filters.mapped === 'true') {
+      where.mapX = { not: null };
+      where.mapY = { not: null };
+      where.mapWidth = { not: null };
+      where.mapHeight = { not: null };
+    }
 
     return prisma.componentInstance.findMany({
       where,
       include: {
         componentType: true,
         panelSection: true,
+        _count: { select: { pinAssignments: true } },
+      },
+      orderBy: [{ panelSectionId: 'asc' }, { sortOrder: 'asc' }],
+    });
+  },
+
+  async findMapData() {
+    return prisma.componentInstance.findMany({
+      where: {
+        mapX: { not: null },
+        mapY: { not: null },
+        mapWidth: { not: null },
+        mapHeight: { not: null },
+      },
+      select: {
+        id: true,
+        name: true,
+        buildStatus: true,
+        powerRail: true,
+        mapX: true,
+        mapY: true,
+        mapWidth: true,
+        mapHeight: true,
+        componentType: {
+          select: { name: true, defaultPinCount: true },
+        },
+        panelSection: {
+          select: { name: true },
+        },
         _count: { select: { pinAssignments: true } },
       },
       orderBy: [{ panelSectionId: 'asc' }, { sortOrder: 'asc' }],

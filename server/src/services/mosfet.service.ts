@@ -69,7 +69,7 @@ export const mosfetService = {
   },
 
   async create(data: { name: string; channelCount?: number; notes?: string }) {
-    const channelCount = data.channelCount ?? 16;
+    const channelCount = data.channelCount ?? 8;
 
     return prisma.$transaction(async (tx) => {
       const board = await tx.mosfetBoard.create({

@@ -214,8 +214,8 @@ async function main() {
 
   // ─── MOSFET Boards ─────────────────────────────────────
   const mosfetBoards = [
-    { name: 'MOSFET-1', channelCount: 16, notes: 'Primary MOSFET board for 27/28V outputs' },
-    { name: 'MOSFET-2', channelCount: 16, notes: 'Secondary MOSFET board for 27/28V outputs' },
+    { name: 'MOSFET-1', channelCount: 8, notes: 'Primary MOSFET board for 27/28V outputs' },
+    { name: 'MOSFET-2', channelCount: 8, notes: 'Secondary MOSFET board for 27/28V outputs' },
   ];
 
   for (const mb of mosfetBoards) {

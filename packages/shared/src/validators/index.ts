@@ -35,6 +35,10 @@ export const createComponentInstanceSchema = z.object({
   powerRail: z.enum(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE']).optional(),
   notes: z.string().nullable().optional(),
   sortOrder: z.number().int().default(0),
+  mapX: z.number().min(0).max(100).optional(),
+  mapY: z.number().min(0).max(100).optional(),
+  mapWidth: z.number().min(0).max(100).optional(),
+  mapHeight: z.number().min(0).max(100).optional(),
 });
 
 export const updateComponentInstanceSchema = z.object({
@@ -45,6 +49,10 @@ export const updateComponentInstanceSchema = z.object({
   powerRail: z.enum(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE']).optional(),
   notes: z.string().nullable().optional(),
   sortOrder: z.number().int().optional(),
+  mapX: z.number().min(0).max(100).nullable().optional(),
+  mapY: z.number().min(0).max(100).nullable().optional(),
+  mapWidth: z.number().min(0).max(100).nullable().optional(),
+  mapHeight: z.number().min(0).max(100).nullable().optional(),
 });
 
 // ─── Pin Assignment ─────────────────────────────────────
@@ -67,6 +75,7 @@ export const updatePinAssignmentSchema = z.object({
   powerRail: z.enum(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE']).optional(),
   wiringStatus: z.enum(['UNASSIGNED', 'PLANNED', 'WIRED', 'TESTED', 'COMPLETE']).optional(),
   notes: z.string().nullable().optional(),
+  mosfetChannelId: z.string().nullable().optional(),
 });
 
 export const bulkUpdatePinAssignmentSchema = z.object({
@@ -95,7 +104,7 @@ export const updatePanelSectionSchema = z.object({
 
 export const createMosfetBoardSchema = z.object({
   name: z.string().min(1).max(50),
-  channelCount: z.number().int().min(1).max(64).default(16),
+  channelCount: z.number().int().min(1).max(64).default(8),
   notes: z.string().nullable().optional(),
 });
 
