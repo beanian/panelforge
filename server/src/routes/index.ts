@@ -7,6 +7,9 @@ import { pinAssignmentRoutes } from './pin-assignments';
 import { mosfetBoardRoutes } from './mosfet-boards';
 import { buildProgressRoutes } from './build-progress';
 import { powerBudgetRoutes } from './power-budget';
+import { mobiFlightRoutes } from './mobiflight';
+import { bomRoutes } from './bom';
+import { wiringDiagramRoutes } from './wiring-diagram';
 
 export const routes = Router();
 
@@ -18,3 +21,6 @@ routes.use('/pin-assignments', pinAssignmentRoutes);
 routes.use('/mosfet-boards', mosfetBoardRoutes);
 routes.use('/build-progress', buildProgressRoutes);
 routes.use('/power-budget', powerBudgetRoutes);
+routes.use('/mobiflight', mobiFlightRoutes);
+routes.use('/bom', bomRoutes);
+routes.use('/wiring-diagram', wiringDiagramRoutes);

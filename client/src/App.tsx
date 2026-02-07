@@ -1,5 +1,6 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, NavLink } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
+import PanelMapPage from '@/pages/PanelMapPage';
 import ComponentLibraryPage from '@/pages/ComponentLibraryPage';
 import PinManagerPage from '@/pages/PinManagerPage';
 
@@ -11,26 +12,52 @@ function PlaceholderPage({ title }: { title: string }) {
   );
 }
 
+function NavItem({ to, children, disabled }: { to: string; children: React.ReactNode; disabled?: boolean }) {
+  if (disabled) {
+    return (
+      <span className="px-2 py-1.5 rounded-md text-sm text-muted-foreground cursor-not-allowed">
+        {children}
+      </span>
+    );
+  }
+
+  return (
+    <NavLink
+      to={to}
+      end
+      className={({ isActive }) =>
+        `px-2 py-1.5 rounded-md text-sm transition-colors duration-150 ${
+          isActive
+            ? 'bg-accent text-accent-foreground font-medium'
+            : 'hover:bg-accent text-foreground'
+        }`
+      }
+    >
+      {children}
+    </NavLink>
+  );
+}
+
 export default function App() {
   return (
     <>
       <div className="flex h-screen">
         <nav className="w-64 border-r bg-muted/40 p-4 flex flex-col gap-1">
           <h1 className="text-lg font-bold mb-4 px-2">PanelForge</h1>
-          <a href="/" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm">Panel Map</a>
-          <a href="/pins" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm">Pin Manager</a>
-          <a href="/components" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm">Component Library</a>
-          <a href="/power" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">Power Budget</a>
-          <a href="/progress" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">Build Progress</a>
-          <a href="/wiring" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">Wiring Diagram</a>
-          <a href="/mobiflight" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">MobiFlight</a>
-          <a href="/bom" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">BOM Generator</a>
-          <a href="/journal" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">Journal</a>
-          <a href="/reference" className="px-2 py-1.5 rounded-md hover:bg-accent text-sm text-muted-foreground">Reference</a>
+          <NavItem to="/">Panel Map</NavItem>
+          <NavItem to="/pins">Pin Manager</NavItem>
+          <NavItem to="/components">Component Library</NavItem>
+          <NavItem to="/power" disabled>Power Budget</NavItem>
+          <NavItem to="/progress" disabled>Build Progress</NavItem>
+          <NavItem to="/wiring" disabled>Wiring Diagram</NavItem>
+          <NavItem to="/mobiflight" disabled>MobiFlight</NavItem>
+          <NavItem to="/bom" disabled>BOM Generator</NavItem>
+          <NavItem to="/journal" disabled>Journal</NavItem>
+          <NavItem to="/reference" disabled>Reference</NavItem>
         </nav>
         <main className="flex-1 overflow-auto p-6">
           <Routes>
-            <Route path="/" element={<PlaceholderPage title="Panel Map — Coming Soon" />} />
+            <Route path="/" element={<PanelMapPage />} />
             <Route path="/pins" element={<PinManagerPage />} />
             <Route path="/components" element={<ComponentLibraryPage />} />
             <Route path="/power" element={<PlaceholderPage title="Power Budget — Coming Soon" />} />
