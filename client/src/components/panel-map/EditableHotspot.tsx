@@ -161,12 +161,13 @@ export function EditableHotspot({ component, containerRef }: EditableHotspotProp
   return (
     <div
       data-component-id={component.id}
-      className={`absolute border-2 ${borderClass} rounded-[2px] cursor-move select-none`}
+      className={`absolute pointer-events-auto border-2 ${borderClass} rounded-[2px] cursor-move select-none`}
       style={{
         left: `${localBox.x}%`,
         top: `${localBox.y}%`,
         width: `${localBox.w}%`,
         height: `${localBox.h}%`,
+        zIndex: Math.round(100 - localBox.y),
       }}
       onPointerDown={(e) => handlePointerDown(e, 'move')}
       onPointerMove={handlePointerMove}

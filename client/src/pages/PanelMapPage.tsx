@@ -32,8 +32,9 @@ export default function PanelMapPage() {
   const [defaultSectionId, setDefaultSectionId] = useState<string | null>(null);
 
   // Zoom + Pan
-  const { scale, translateX, translateY, containerProps: panZoomContainerProps, style: panZoomStyle, setContainerRef, resetView } = usePanZoom();
+  const { scale, translateX, translateY, containerProps: panZoomContainerProps, style: panZoomStyle, setContainerRef, resetView, zoomToRect } = usePanZoom();
   const outerContainerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
 
   // ─── Mutations ──────────────────────────────────────
   const quickStatusMutation = useMutation({
@@ -185,6 +186,15 @@ export default function PanelMapPage() {
     [],
   );
 
+  const handleZoomToSection = useCallback(
+    (rect: { x: number; y: number; width: number; height: number }) => {
+      if (innerRef.current) {
+        zoomToRect(rect, innerRef.current);
+      }
+    },
+    [zoomToRect],
+  );
+
   // ─── Escape key ──────────────────────────────────────
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -264,9 +274,11 @@ export default function PanelMapPage() {
         onDrawComplete={handleDrawComplete}
         showSectionOverlays={showSectionOverlays}
         onSectionClick={handleViewSection}
+        onZoomToSection={handleZoomToSection}
         panZoomStyle={panZoomStyle}
         panZoomContainerProps={panZoomContainerProps}
         scale={scale}
+        innerRef={innerRef}
         outerContainerRef={outerContainerRef}
         setZoomContainerRef={setContainerRef}
       />

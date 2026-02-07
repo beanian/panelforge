@@ -139,6 +139,53 @@ export function usePanZoom() {
     setState({ scale: 1, translateX: 0, translateY: 0 });
   }, []);
 
+  // Zoom to fit a percentage-based rectangle in the viewport
+  const zoomToRect = useCallback(
+    (
+      pctRect: { x: number; y: number; width: number; height: number },
+      innerEl: HTMLElement,
+    ) => {
+      if (!containerEl) return;
+
+      // Natural (unscaled) content dimensions
+      const contentW = innerEl.offsetWidth;
+      const contentH = innerEl.offsetHeight;
+
+      // Viewport dimensions
+      const viewRect = containerEl.getBoundingClientRect();
+      const viewW = viewRect.width;
+      const viewH = viewRect.height;
+
+      // Section in natural pixels
+      const secW = (pctRect.width / 100) * contentW;
+      const secH = (pctRect.height / 100) * contentH;
+      const secCenterX = ((pctRect.x + pctRect.width / 2) / 100) * contentW;
+      const secCenterY = ((pctRect.y + pctRect.height / 2) / 100) * contentH;
+
+      // Scale to fit section with ~40% margin, minimum 1.5x for a useful zoom
+      const PADDING = 1.4;
+      const MIN_ZOOM = 1.5;
+      const newScale = Math.max(
+        MIN_ZOOM,
+        Math.min(MAX_SCALE, Math.min(viewW / (secW * PADDING), viewH / (secH * PADDING))),
+      );
+
+      // Translate to center: the inner element is flex-centered in the viewport,
+      // so CSS transforms don't affect layout. The flex offset is (viewW - contentW)/2.
+      // Screen position of natural point (px,py) = flexOffset + (px + tx) * S
+      // Setting screen pos to viewport center and solving:
+      //   (viewW - contentW)/2 + (secCenterX + tx) * S = viewW / 2
+      //   (secCenterX + tx) * S = contentW / 2
+      //   tx = contentW / (2 * S) - secCenterX
+      const tx = contentW / (2 * newScale) - secCenterX;
+      const ty = contentH / (2 * newScale) - secCenterY;
+
+      const clamped = clampTranslate(tx, ty, newScale, containerEl);
+      setState({ scale: newScale, ...clamped });
+    },
+    [containerEl, clampTranslate],
+  );
+
   let cursor = 'default';
   if (panningRef.current) cursor = 'grabbing';
   else if (spaceHeldRef.current && state.scale > 1) cursor = 'grab';
@@ -164,5 +211,6 @@ export function usePanZoom() {
     style,
     setContainerRef,
     resetView,
+    zoomToRect,
   };
 }

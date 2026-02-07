@@ -102,10 +102,12 @@ interface PanelMapProps {
   // Section overlays
   showSectionOverlays?: boolean;
   onSectionClick?: (id: string) => void;
+  onZoomToSection?: (rect: { x: number; y: number; width: number; height: number }) => void;
   // Zoom + pan
   panZoomStyle?: React.CSSProperties;
   panZoomContainerProps?: Record<string, any>;
   scale?: number;
+  innerRef?: React.RefObject<HTMLDivElement | null>;
   outerContainerRef?: React.RefObject<HTMLDivElement | null>;
   setZoomContainerRef?: (el: HTMLElement | null) => void;
 }
@@ -125,13 +127,16 @@ export function PanelMap({
   onDrawComplete,
   showSectionOverlays,
   onSectionClick,
+  onZoomToSection,
   panZoomStyle,
   panZoomContainerProps,
   scale = 1,
+  innerRef: innerRefProp,
   outerContainerRef,
   setZoomContainerRef,
 }: PanelMapProps) {
-  const innerRef = useRef<HTMLDivElement>(null);
+  const localInnerRef = useRef<HTMLDivElement>(null);
+  const innerRef = innerRefProp ?? localInnerRef;
   const [dragRect, setDragRect] = useState<DragRect | null>(null);
   const [rightClickComponentId, setRightClickComponentId] = useState<string | null>(null);
   const rightClickIdRef = useRef<string | null>(null);
@@ -248,13 +253,9 @@ export function PanelMap({
                 draggable={false}
               />
 
-              {/* Section overlays (behind hotspots) */}
-              {showSectionOverlays && (
-                <SectionOverlayLayer visible onSectionClick={onSectionClick} />
-              )}
-
               {/* Hotspot overlay container */}
-              <div className="absolute inset-0">
+              <div className="absolute inset-0 pointer-events-none">
+
                 {isLoading ? (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-sm text-slate-400 animate-pulse">Loading components...</div>
@@ -271,6 +272,14 @@ export function PanelMap({
                   ))
                 )}
               </div>
+
+              {/* Section overlays (above hotspots so labels aren't occluded) */}
+              {showSectionOverlays && (
+                <SectionOverlayLayer
+                  visible
+                  onZoomToSection={onZoomToSection}
+                />
+              )}
 
               {/* Drag rectangle */}
               {dragStyle && (

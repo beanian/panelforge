@@ -20,18 +20,19 @@ export function ComponentHotspot({ component, onClick, configureMode, containerR
   return (
     <div
       data-component-id={component.id}
-      className="group absolute cursor-pointer border border-transparent rounded-[2px] hover:border-blue-400/50 hover:bg-blue-400/10 transition-colors duration-100"
+      className="group absolute cursor-pointer pointer-events-auto border border-transparent rounded-[2px] hover:border-blue-400/50 hover:bg-blue-400/10 transition-colors duration-100"
       style={{
         left: `${component.mapX}%`,
         top: `${component.mapY}%`,
         width: `${component.mapWidth}%`,
         height: `${component.mapHeight}%`,
+        zIndex: Math.round(100 - component.mapY),
       }}
       onClick={() => onClick(component.id)}
     >
       {/* Tooltip */}
       <div
-        className={`absolute left-1/2 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100 ${
+        className={`absolute left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-100 ${
           showAbove ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
         }`}
       >

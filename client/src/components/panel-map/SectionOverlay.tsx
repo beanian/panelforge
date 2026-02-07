@@ -18,29 +18,35 @@ const PROGRESS_COLORS: Record<string, string> = {
 
 interface SectionOverlayProps {
   section: PanelSectionSummary;
-  onClick?: (id: string) => void;
+  onZoomToSection?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }
 
-export function SectionOverlay({ section, onClick }: SectionOverlayProps) {
+export function SectionOverlay({ section, onZoomToSection }: SectionOverlayProps) {
   const style = STATUS_STYLES[section.buildStatus] ?? STATUS_STYLES.NOT_ONBOARDED;
   const progressColor = PROGRESS_COLORS[section.buildStatus] ?? PROGRESS_COLORS.NOT_ONBOARDED;
 
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (section.svgX != null && section.svgY != null && section.svgWidth != null && section.svgHeight != null) {
+      onZoomToSection?.({ x: section.svgX, y: section.svgY, width: section.svgWidth, height: section.svgHeight });
+    }
+  }
+
   return (
     <div
-      className={`absolute border border-dashed rounded-[2px] pointer-events-auto cursor-pointer transition-all duration-150 group ${style.fill} ${style.border} hover:brightness-150`}
+      className={`absolute border border-dashed rounded-[2px] pointer-events-none transition-all duration-150 ${style.fill} ${style.border}`}
       style={{
         left: `${section.svgX}%`,
         top: `${section.svgY}%`,
         width: `${section.svgWidth}%`,
         height: `${section.svgHeight}%`,
       }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.(section.id);
-      }}
     >
-      {/* Section name label */}
-      <span className="absolute top-0.5 left-0.5 text-[9px] leading-none bg-slate-800/60 backdrop-blur-sm px-1 py-0.5 rounded text-slate-300/70 group-hover:text-slate-200 transition-colors whitespace-nowrap">
+      {/* Section name label — clickable, sits above component hotspots */}
+      <span
+        className="absolute top-0.5 left-0.5 text-[9px] leading-none bg-slate-800/60 backdrop-blur-sm px-1 py-0.5 rounded text-slate-300/70 hover:text-slate-200 transition-colors whitespace-nowrap pointer-events-auto cursor-zoom-in"
+        onClick={handleClick}
+      >
         {section.name}
       </span>
 

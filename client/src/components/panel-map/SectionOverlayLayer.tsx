@@ -3,10 +3,10 @@ import { SectionOverlay } from './SectionOverlay';
 
 interface SectionOverlayLayerProps {
   visible: boolean;
-  onSectionClick?: (id: string) => void;
+  onZoomToSection?: (rect: { x: number; y: number; width: number; height: number }) => void;
 }
 
-export function SectionOverlayLayer({ visible, onSectionClick }: SectionOverlayLayerProps) {
+export function SectionOverlayLayer({ visible, onZoomToSection }: SectionOverlayLayerProps) {
   const { data: sections } = usePanelSectionSummary();
 
   if (!visible) return null;
@@ -19,7 +19,7 @@ export function SectionOverlayLayer({ visible, onSectionClick }: SectionOverlayL
         <SectionOverlay
           key={section.id}
           section={section}
-          onClick={onSectionClick}
+          onZoomToSection={onZoomToSection}
         />
       ))}
     </div>
