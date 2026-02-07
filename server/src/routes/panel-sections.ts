@@ -15,6 +15,15 @@ panelSectionRoutes.get(
   }),
 );
 
+// GET /api/panel-sections/summary — aggregated data for all sections
+panelSectionRoutes.get(
+  '/summary',
+  asyncHandler(async (_req, res) => {
+    const summary = await panelSectionService.getSummary();
+    res.json(summary);
+  }),
+);
+
 // GET /api/panel-sections/:id — get section with full details
 panelSectionRoutes.get(
   '/:id',

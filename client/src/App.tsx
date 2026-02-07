@@ -1,5 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
+import ComponentLibraryPage from '@/pages/ComponentLibraryPage';
+import PinManagerPage from '@/pages/PinManagerPage';
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -29,8 +31,8 @@ export default function App() {
         <main className="flex-1 overflow-auto p-6">
           <Routes>
             <Route path="/" element={<PlaceholderPage title="Panel Map — Coming Soon" />} />
-            <Route path="/pins" element={<PlaceholderPage title="Pin Manager — Coming Soon" />} />
-            <Route path="/components" element={<PlaceholderPage title="Component Library — Coming Soon" />} />
+            <Route path="/pins" element={<PinManagerPage />} />
+            <Route path="/components" element={<ComponentLibraryPage />} />
             <Route path="/power" element={<PlaceholderPage title="Power Budget — Coming Soon" />} />
             <Route path="/progress" element={<PlaceholderPage title="Build Progress — Coming Soon" />} />
             <Route path="/wiring" element={<PlaceholderPage title="Wiring Diagram — Coming Soon" />} />

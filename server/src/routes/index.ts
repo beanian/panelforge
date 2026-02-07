@@ -5,6 +5,8 @@ import { componentTypeRoutes } from './component-types';
 import { componentInstanceRoutes } from './component-instances';
 import { pinAssignmentRoutes } from './pin-assignments';
 import { mosfetBoardRoutes } from './mosfet-boards';
+import { buildProgressRoutes } from './build-progress';
+import { powerBudgetRoutes } from './power-budget';
 
 export const routes = Router();
 
@@ -14,3 +16,5 @@ routes.use('/component-types', componentTypeRoutes);
 routes.use('/component-instances', componentInstanceRoutes);
 routes.use('/pin-assignments', pinAssignmentRoutes);
 routes.use('/mosfet-boards', mosfetBoardRoutes);
+routes.use('/build-progress', buildProgressRoutes);
+routes.use('/power-budget', powerBudgetRoutes);

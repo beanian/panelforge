@@ -80,6 +80,65 @@ export const panelSectionService = {
     };
   },
 
+  async getSummary() {
+    const sections = await prisma.panelSection.findMany({
+      include: {
+        componentInstances: {
+          include: {
+            componentType: { select: { defaultPinCount: true } },
+            pinAssignments: {
+              select: {
+                id: true,
+                powerRail: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return sections.map((section) => {
+      const componentCount = section.componentInstances.length;
+
+      // Pin usage: assigned = actual pin assignments, total = sum of defaultPinCount from types
+      const assignedPins = section.componentInstances.reduce(
+        (sum, ci) => sum + ci.pinAssignments.length,
+        0,
+      );
+      const totalPins = section.componentInstances.reduce(
+        (sum, ci) => sum + ci.componentType.defaultPinCount,
+        0,
+      );
+
+      // Power breakdown by rail
+      const powerBreakdown = { FIVE_V: 0, NINE_V: 0, TWENTY_SEVEN_V: 0, NONE: 0 };
+      section.componentInstances.forEach((ci) => {
+        ci.pinAssignments.forEach((pin) => {
+          powerBreakdown[pin.powerRail as keyof typeof powerBreakdown] += 1;
+        });
+      });
+
+      // Build progress: percentage of components with COMPLETE status
+      const completeCount = section.componentInstances.filter(
+        (ci) => ci.buildStatus === 'COMPLETE',
+      ).length;
+      const buildProgress = componentCount > 0
+        ? Math.round((completeCount / componentCount) * 100)
+        : 0;
+
+      const { componentInstances: _instances, ...sectionData } = section;
+
+      return {
+        ...sectionData,
+        componentCount,
+        pinUsage: { assigned: assignedPins, total: totalPins },
+        powerBreakdown,
+        buildProgress,
+      };
+    });
+  },
+
   async update(
     id: string,
     data: {
