@@ -93,6 +93,7 @@ interface PanelMapProps {
   onSelectComponent: (id: string) => void;
   configureMode: boolean;
   drawingBox: boolean;
+  placementSize?: { width: number; height: number };
   onAddComponent: () => void;
   onCopyComponent: (sourceId: string) => void;
   onDeleteComponent: (id: string) => void;
@@ -119,6 +120,7 @@ export function PanelMap({
   onSelectComponent,
   configureMode,
   drawingBox,
+  placementSize,
   onAddComponent,
   onCopyComponent,
   onDeleteComponent,
@@ -138,31 +140,53 @@ export function PanelMap({
   const localInnerRef = useRef<HTMLDivElement>(null);
   const innerRef = innerRefProp ?? localInnerRef;
   const [dragRect, setDragRect] = useState<DragRect | null>(null);
+  const [placementPos, setPlacementPos] = useState<{ x: number; y: number } | null>(null);
   const [rightClickComponentId, setRightClickComponentId] = useState<string | null>(null);
   const rightClickIdRef = useRef<string | null>(null);
 
   const toPercent = usePercentCoords(innerRef);
 
-  // ─── Drawing mode handlers ──────────────────────────
+  // ─── Drawing / Placement mode handlers ──────────────────────────
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (!drawingBox) return;
       if (e.button !== 0) return; // left click only
       e.preventDefault();
       e.stopPropagation();
+
+      if (placementSize) {
+        // Placement mode: place fixed-size box centered on click
+        const pos = toPercent(e.clientX, e.clientY);
+        const x = Math.max(0, Math.min(100 - placementSize.width, pos.x - placementSize.width / 2));
+        const y = Math.max(0, Math.min(100 - placementSize.height, pos.y - placementSize.height / 2));
+        onDrawComplete({
+          mapX: Math.round(x * 100) / 100,
+          mapY: Math.round(y * 100) / 100,
+          mapWidth: Math.round(placementSize.width * 100) / 100,
+          mapHeight: Math.round(placementSize.height * 100) / 100,
+        });
+        setPlacementPos(null);
+        return;
+      }
+
       const pos = toPercent(e.clientX, e.clientY);
       setDragRect({ startX: pos.x, startY: pos.y, currentX: pos.x, currentY: pos.y });
     },
-    [drawingBox, toPercent],
+    [drawingBox, toPercent, placementSize, onDrawComplete],
   );
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
+      if (drawingBox && placementSize) {
+        const pos = toPercent(e.clientX, e.clientY);
+        setPlacementPos(pos);
+        return;
+      }
       if (!dragRect) return;
       const pos = toPercent(e.clientX, e.clientY);
       setDragRect((prev) => (prev ? { ...prev, currentX: pos.x, currentY: pos.y } : null));
     },
-    [dragRect, toPercent],
+    [drawingBox, placementSize, dragRect, toPercent],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -192,6 +216,16 @@ export function PanelMap({
         top: `${Math.min(dragRect.startY, dragRect.currentY)}%`,
         width: `${Math.abs(dragRect.currentX - dragRect.startX)}%`,
         height: `${Math.abs(dragRect.currentY - dragRect.startY)}%`,
+      }
+    : undefined;
+
+  // Placement ghost box style
+  const placementStyle = placementPos && placementSize
+    ? {
+        left: `${Math.max(0, Math.min(100 - placementSize.width, placementPos.x - placementSize.width / 2))}%`,
+        top: `${Math.max(0, Math.min(100 - placementSize.height, placementPos.y - placementSize.height / 2))}%`,
+        width: `${placementSize.width}%`,
+        height: `${placementSize.height}%`,
       }
     : undefined;
 
@@ -238,12 +272,12 @@ export function PanelMap({
             {/* Inner container for zoom/pan transforms */}
             <div
               ref={innerRef}
-              className={`relative origin-top-left w-fit ${drawingBox ? 'cursor-crosshair' : ''}`}
+              className={`relative origin-top-left w-fit ${drawingBox ? (placementSize ? 'cursor-copy' : 'cursor-crosshair') : ''}`}
               style={panZoomStyle}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
-              onMouseLeave={() => setDragRect(null)}
+              onMouseLeave={() => { setDragRect(null); setPlacementPos(null); }}
             >
               {/* Background PNG */}
               <img
@@ -286,6 +320,14 @@ export function PanelMap({
                 <div
                   className="absolute border-2 border-dashed border-blue-400 bg-blue-400/10 pointer-events-none z-20"
                   style={dragStyle}
+                />
+              )}
+
+              {/* Placement ghost box */}
+              {placementStyle && (
+                <div
+                  className="absolute border-2 border-dashed border-green-400 bg-green-400/15 pointer-events-none z-20"
+                  style={placementStyle}
                 />
               )}
             </div>

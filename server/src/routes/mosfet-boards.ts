@@ -43,3 +43,12 @@ mosfetBoardRoutes.patch(
     res.json(board);
   }),
 );
+
+// DELETE /api/mosfet-boards/:id — delete board (only if no channels in use)
+mosfetBoardRoutes.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    await mosfetService.remove(req.params.id);
+    res.status(204).end();
+  }),
+);

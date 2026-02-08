@@ -64,7 +64,7 @@ model Board {
   boardType       String          @default("Arduino Mega 2560")
   digitalPinCount Int             @default(54)
   analogPinCount  Int             @default(16)
-  pwmPins         Int[]           @default([2,3,4,5,6,7,8,9,10,11,12,13,44,45,46])
+  pwmPins         Int[]           @default([2,3,4,5,6,7,8,9,10,11,12,13])
   notes           String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -107,7 +107,8 @@ model ComponentType {
   name               String              @unique
   description        String?
   defaultPinCount    Int
-  pinTypesRequired   PinType[]
+  pinLabels          String[]
+  pinTypes           String[]
   defaultPowerRail   PowerRail           @default(NONE)
   defaultPinMode     PinMode             @default(INPUT)
   pwmRequired        Boolean             @default(false)

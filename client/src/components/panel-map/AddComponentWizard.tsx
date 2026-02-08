@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Wand2 } from 'lucide-react';
 import {
@@ -43,15 +43,23 @@ interface PinConfig {
   requiresPwm: boolean;
 }
 
+interface WizardDefaults {
+  name?: string;
+  componentTypeId?: string;
+  panelSectionId?: string;
+  powerRail?: string;
+}
+
 interface AddComponentWizardProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   boundingBox: BoundingBox;
   defaultPanelSectionId?: string;
+  defaults?: WizardDefaults;
   onCreated: (id: string) => void;
 }
 
-export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPanelSectionId, onCreated }: AddComponentWizardProps) {
+export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPanelSectionId, defaults, onCreated }: AddComponentWizardProps) {
   const [step, setStep] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -79,12 +87,49 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   const createPin = useCreatePinAssignment();
   const updatePin = useUpdatePinAssignment();
 
-  // Pre-fill panel section when a default is provided
+  // Pre-fill form from defaults (copy) or defaultPanelSectionId (auto-detect)
+  const defaultsApplied = useRef(false);
   useEffect(() => {
-    if (open && defaultPanelSectionId) {
-      setPanelSectionId(defaultPanelSectionId);
+    if (!open) {
+      defaultsApplied.current = false;
+      return;
     }
-  }, [open, defaultPanelSectionId]);
+    if (defaultsApplied.current) return;
+
+    if (defaults) {
+      // Wait for component types to load before applying type-dependent defaults
+      if (!componentTypes) return;
+      defaultsApplied.current = true;
+
+      setName(defaults.name ?? '');
+      setPanelSectionId(defaults.panelSectionId ?? defaultPanelSectionId ?? '');
+
+      if (defaults.componentTypeId) {
+        setComponentTypeId(defaults.componentTypeId);
+        const ct = componentTypes.find((t) => t.id === defaults.componentTypeId);
+        if (ct) {
+          setPowerRail(defaults.powerRail ?? ct.defaultPowerRail);
+          setPins(
+            Array.from({ length: ct.defaultPinCount }, (_, i) => ({
+              pinNumber: '',
+              pinType:
+                ct.pinTypes?.[i] === 'ANALOG'
+                  ? 'ANALOG'
+                  : ct.pinTypes?.[i] === 'DIGITAL'
+                    ? 'DIGITAL'
+                    : 'DIGITAL',
+              requiresPwm: ct.defaultPinMode === 'PWM' || ct.pwmRequired,
+            })),
+          );
+        }
+      }
+    } else {
+      defaultsApplied.current = true;
+      if (defaultPanelSectionId) {
+        setPanelSectionId(defaultPanelSectionId);
+      }
+    }
+  }, [open, defaults, defaultPanelSectionId, componentTypes]);
 
   const selectedType = componentTypes?.find((ct) => ct.id === componentTypeId);
   const selectedBoard = boards?.find((b) => b.id === boardId);
@@ -116,11 +161,16 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   const pwmPinSet = useMemo(() => new Set(MEGA_2560.pwmPins), []);
 
   // Get available pins for a specific row (excluding other rows' selections)
-  function getAvailablePinsForRow(index: number, pinType: string) {
+  function getAvailablePinsForRow(index: number, pinType: string, pinTypeConfig: string) {
     const othersSelected = new Set(
       pins.filter((_, i) => i !== index).map((p) => p.pinNumber).filter(Boolean),
     );
-    const pool = pinType === 'ANALOG' ? availableAnalogPins : availableDigitalPins;
+    // ANY/Either: show both digital and analog pins
+    const pool = pinTypeConfig === 'ANY' || !pinTypeConfig
+      ? [...availableDigitalPins, ...availableAnalogPins]
+      : pinType === 'ANALOG'
+        ? availableAnalogPins
+        : availableDigitalPins;
     return pool.filter((p) => !othersSelected.has(p));
   }
 
@@ -132,7 +182,9 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
       setPowerRail(ct.defaultPowerRail);
       const newPins: PinConfig[] = Array.from({ length: ct.defaultPinCount }, (_, i) => ({
         pinNumber: '',
-        pinType: ct.pinTypesRequired[Math.min(i, ct.pinTypesRequired.length - 1)],
+        pinType: ct.pinTypes?.[i] === 'ANALOG' ? 'ANALOG'
+          : ct.pinTypes?.[i] === 'DIGITAL' ? 'DIGITAL'
+          : 'DIGITAL',
         requiresPwm: ct.defaultPinMode === 'PWM' || ct.pwmRequired,
       }));
       setPins(newPins);
@@ -162,8 +214,13 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
     setPins((prev) => {
       const claimed = new Set<string>();
-      return prev.map((pin) => {
-        const pool = pin.pinType === 'ANALOG' ? availableAnalogPins : availableDigitalPins;
+      return prev.map((pin, i) => {
+        const typeConfig = selectedType?.pinTypes?.[i] ?? 'ANY';
+        const pool = typeConfig === 'ANY' || !typeConfig
+          ? [...availableDigitalPins, ...availableAnalogPins]
+          : pin.pinType === 'ANALOG'
+            ? availableAnalogPins
+            : availableDigitalPins;
         const candidates = pool.filter((p) => !claimed.has(p));
 
         let chosen: string | undefined;
@@ -225,16 +282,21 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
       const createdPinIds: string[] = [];
       if (hasPinConfig) {
-        for (const pin of pins) {
+        for (let i = 0; i < pins.length; i++) {
+          const pin = pins[i];
           if (!pin.pinNumber) continue;
           const pinMode = pin.requiresPwm ? 'PWM' : (selectedType?.defaultPinMode ?? 'INPUT');
+          const pinLabel = selectedType?.pinLabels?.[i];
+          // Derive actual pin type from pin number prefix
+          const actualPinType = pin.pinNumber.startsWith('A') ? 'ANALOG' : 'DIGITAL';
           const result = await createPin.mutateAsync({
             boardId,
             pinNumber: pin.pinNumber,
-            pinType: pin.pinType,
+            pinType: actualPinType,
             pinMode,
             componentInstanceId: instanceId,
             powerRail: powerRail || 'NONE',
+            description: pinLabel || null,
           }) as any;
           createdPinIds.push(result.id);
         }
@@ -378,7 +440,8 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                   </Button>
                 </div>
                 {pins.map((pin, i) => {
-                  const available = getAvailablePinsForRow(i, pin.pinType);
+                  const pinTypeConfig = selectedType?.pinTypes?.[i] ?? 'ANY';
+                  const available = getAvailablePinsForRow(i, pin.pinType, pinTypeConfig);
                   // If PWM required, filter to only PWM-capable pins
                   const filteredPins = pin.requiresPwm
                     ? available.filter((p) => pwmPinSet.has(p))
@@ -388,8 +451,16 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                     ? [pin.pinNumber, ...filteredPins]
                     : filteredPins;
 
+                  const pinLabel = selectedType?.pinLabels?.[i];
+                  const isAnyType = pinTypeConfig === 'ANY' || !pinTypeConfig;
+
                   return (
                     <div key={i} className="flex items-center gap-2">
+                      {pinLabel && (
+                        <span className="text-xs font-medium text-foreground w-20 shrink-0 truncate" title={pinLabel}>
+                          {pinLabel}
+                        </span>
+                      )}
                       <div className="flex-1">
                         <Select
                           value={pin.pinNumber || undefined}
@@ -415,9 +486,11 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                           </SelectContent>
                         </Select>
                       </div>
-                      <Badge variant="outline" className="text-[10px] shrink-0">
-                        {pin.pinType}
-                      </Badge>
+                      {!isAnyType && (
+                        <Badge variant="outline" className="text-[10px] shrink-0">
+                          {pin.pinType}
+                        </Badge>
+                      )}
                       <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer shrink-0">
                         <input
                           type="checkbox"

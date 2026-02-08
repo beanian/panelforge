@@ -25,7 +25,7 @@ describe('bomService.calculate', () => {
   });
 
   it('allocates digital pins from available boards', async () => {
-    const ct = makeComponentType({ defaultPinCount: 2, pinTypesRequired: ['DIGITAL'] });
+    const ct = makeComponentType({ defaultPinCount: 2, pinTypes: ['DIGITAL'] });
     const ci = makeComponentInstance({
       componentType: ct,
       pinAssignments: [],
@@ -50,7 +50,7 @@ describe('bomService.calculate', () => {
   it('allocates PWM pins from pwmPins list', async () => {
     const ct = makeComponentType({
       defaultPinCount: 1,
-      pinTypesRequired: ['DIGITAL'],
+      pinTypes: ['DIGITAL'],
       pwmRequired: true,
     });
     const ci = makeComponentInstance({
@@ -73,7 +73,7 @@ describe('bomService.calculate', () => {
   });
 
   it('skips used pins when allocating', async () => {
-    const ct = makeComponentType({ defaultPinCount: 1, pinTypesRequired: ['DIGITAL'] });
+    const ct = makeComponentType({ defaultPinCount: 1, pinTypes: ['DIGITAL'] });
     const ci = makeComponentInstance({
       componentType: ct,
       pinAssignments: [],
@@ -99,7 +99,7 @@ describe('bomService.calculate', () => {
   it('calculates newBoardsNeeded when capacity exhausted', async () => {
     const ct = makeComponentType({
       defaultPinCount: 55,
-      pinTypesRequired: ['DIGITAL'],
+      pinTypes: ['DIGITAL'],
     });
     const ci = makeComponentInstance({
       componentType: ct,
@@ -122,7 +122,7 @@ describe('bomService.calculate', () => {
   it('tracks MOSFET channels for 27V components', async () => {
     const ct = makeComponentType({
       defaultPinCount: 2,
-      pinTypesRequired: ['DIGITAL'],
+      pinTypes: ['DIGITAL'],
       defaultPowerRail: 'TWENTY_SEVEN_V',
     });
     const ci = makeComponentInstance({
@@ -157,7 +157,7 @@ describe('bomService.calculate', () => {
   it('allocates analog pins correctly', async () => {
     const ct = makeComponentType({
       defaultPinCount: 1,
-      pinTypesRequired: ['ANALOG'],
+      pinTypes: ['ANALOG'],
     });
     const ci = makeComponentInstance({
       componentType: ct,

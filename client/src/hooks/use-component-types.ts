@@ -6,7 +6,8 @@ export interface ComponentType {
   name: string;
   description: string | null;
   defaultPinCount: number;
-  pinTypesRequired: string[];
+  pinLabels: string[];
+  pinTypes: string[];
   defaultPowerRail: string;
   defaultPinMode: string;
   pwmRequired: boolean;

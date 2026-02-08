@@ -172,7 +172,7 @@ export const bomService = {
           typeName: ct.name,
           pinsNeeded: 0,
           pinMode: ct.defaultPinMode,
-          pinType: ct.pinTypesRequired.length > 0 ? ct.pinTypesRequired[0] : 'DIGITAL',
+          pinType: ct.pinTypes?.[0] === 'ANALOG' ? 'ANALOG' : 'DIGITAL',
           pwmRequired: ct.pwmRequired,
           powerRail: (instance.powerRail ?? ct.defaultPowerRail) as string,
           allocations: [],
@@ -181,7 +181,7 @@ export const bomService = {
       }
 
       // Determine the pin type needed (first required type, default to DIGITAL)
-      const pinType = ct.pinTypesRequired.length > 0 ? ct.pinTypesRequired[0] : 'DIGITAL';
+      const pinType = ct.pinTypes?.[0] === 'ANALOG' ? 'ANALOG' : 'DIGITAL';
       const pwmRequired = ct.pwmRequired;
       const powerRail = (instance.powerRail ?? ct.defaultPowerRail) as string;
 

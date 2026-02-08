@@ -23,7 +23,7 @@ describe('boardService.findAll', () => {
       digitalFree: 52,
       analogUsed: 1,
       analogFree: 15,
-      pwmFree: 14,
+      pwmFree: 11,
     });
   });
 

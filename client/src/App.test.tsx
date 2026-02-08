@@ -10,14 +10,14 @@ describe('App', () => {
     const navItems = [
       'Panel Map',
       'Pin Manager',
-      'Component Library',
+      'Components',
       'Power Budget',
-      'Wiring Diagram',
+      'Wiring',
       'MobiFlight',
-      'BOM Generator',
+      'BOM',
       'Journal',
       'Reference',
-      'Calibrate Sections',
+      'Calibrate',
     ];
 
     for (const item of navItems) {

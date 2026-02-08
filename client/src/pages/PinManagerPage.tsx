@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Search, Plus, X, Filter, Cpu } from 'lucide-react';
+import { Search, Plus, X, Filter, Cpu, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -40,8 +40,18 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { InlineEdit } from '@/components/pin-manager/InlineEdit';
 
-import { useBoards, useCreateBoard, type Board } from '@/hooks/use-boards';
-import { useMosfetBoards, useCreateMosfetBoard } from '@/hooks/use-mosfet-boards';
+import { useBoards, useCreateBoard, useUpdateBoard, useDeleteBoard, type Board } from '@/hooks/use-boards';
+import { useMosfetBoards, useCreateMosfetBoard, useUpdateMosfetBoard, useDeleteMosfetBoard } from '@/hooks/use-mosfet-boards';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   usePinAssignments,
   useUpdatePinAssignment,
@@ -251,6 +261,177 @@ function AddMosfetBoardDialog() {
   );
 }
 
+// --- Rename Board Dialog ---
+
+function RenameBoardDialog({
+  open,
+  onOpenChange,
+  currentName,
+  onRename,
+  isPending,
+  boardType,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  currentName: string;
+  onRename: (name: string) => void;
+  isPending: boolean;
+  boardType: string;
+}) {
+  const [name, setName] = useState(currentName);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (name.trim()) onRename(name.trim());
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Rename {boardType}</DialogTitle>
+            <DialogDescription>
+              Enter a new name for this board.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="rename-input">Board Name</Label>
+            <Input
+              id="rename-input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1.5"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!name.trim() || name.trim() === currentName || isPending}>
+              {isPending ? 'Renaming...' : 'Rename'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// --- Delete Board Confirm ---
+
+function DeleteBoardConfirm({
+  open,
+  onOpenChange,
+  boardName,
+  onDelete,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  boardName: string;
+  onDelete: () => void;
+  isPending: boolean;
+}) {
+  return (
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete "{boardName}"?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. The board and all its unassigned pins/channels will be permanently removed.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onDelete}
+            disabled={isPending}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            {isPending ? 'Deleting...' : 'Delete'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
+// --- Board Actions Menu ---
+
+function BoardActionsMenu({
+  boardId,
+  boardName,
+  boardType,
+  onUpdate,
+  onDelete,
+  updatePending,
+  deletePending,
+}: {
+  boardId: string;
+  boardName: string;
+  boardType: string;
+  onUpdate: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  updatePending: boolean;
+  deletePending: boolean;
+}) {
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            className="inline-flex items-center justify-center size-6 rounded hover:bg-accent/50 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="size-3.5" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+            <Pencil className="size-3.5 mr-2" />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="size-3.5 mr-2" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <RenameBoardDialog
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+        currentName={boardName}
+        onRename={(name) => {
+          onUpdate(boardId, name);
+          setRenameOpen(false);
+        }}
+        isPending={updatePending}
+        boardType={boardType}
+      />
+
+      <DeleteBoardConfirm
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        boardName={boardName}
+        onDelete={() => {
+          onDelete(boardId);
+          setDeleteOpen(false);
+        }}
+        isPending={deletePending}
+      />
+    </>
+  );
+}
+
 // --- Main page ---
 
 export default function PinManagerPage() {
@@ -258,6 +439,61 @@ export default function PinManagerPage() {
   const { data: boards = [], isLoading: boardsLoading } = useBoards();
   const { data: mosfetBoards = [] } = useMosfetBoards();
   const [selectedBoardId, setSelectedBoardId] = useState<string | undefined>();
+
+  // Board mutations
+  const updateBoard = useUpdateBoard();
+  const deleteBoard = useDeleteBoard();
+  const updateMosfetBoard = useUpdateMosfetBoard();
+  const deleteMosfetBoard = useDeleteMosfetBoard();
+
+  const handleUpdateBoard = useCallback(
+    (id: string, name: string) => {
+      updateBoard.mutate(
+        { id, name },
+        {
+          onSuccess: () => toast.success('Board renamed'),
+          onError: (err) => toast.error(`Rename failed: ${err.message}`),
+        }
+      );
+    },
+    [updateBoard]
+  );
+
+  const handleDeleteBoard = useCallback(
+    (id: string) => {
+      deleteBoard.mutate(id, {
+        onSuccess: () => {
+          toast.success('Board deleted');
+          if (selectedBoardId === id) setSelectedBoardId(undefined);
+        },
+        onError: (err) => toast.error(`Delete failed: ${err.message}`),
+      });
+    },
+    [deleteBoard, selectedBoardId]
+  );
+
+  const handleUpdateMosfetBoard = useCallback(
+    (id: string, name: string) => {
+      updateMosfetBoard.mutate(
+        { id, name },
+        {
+          onSuccess: () => toast.success('MOSFET board renamed'),
+          onError: (err) => toast.error(`Rename failed: ${err.message}`),
+        }
+      );
+    },
+    [updateMosfetBoard]
+  );
+
+  const handleDeleteMosfetBoard = useCallback(
+    (id: string) => {
+      deleteMosfetBoard.mutate(id, {
+        onSuccess: () => toast.success('MOSFET board deleted'),
+        onError: (err) => toast.error(`Delete failed: ${err.message}`),
+      });
+    },
+    [deleteMosfetBoard]
+  );
 
   // Resolve selected board (default to first)
   const selectedBoard: Board | undefined = useMemo(() => {
@@ -390,6 +626,15 @@ export default function PinManagerPage() {
               <span className="text-xs text-muted-foreground">
                 {mb.usedChannels}/{mb.channelCount} used
               </span>
+              <BoardActionsMenu
+                boardId={mb.id}
+                boardName={mb.name}
+                boardType="MOSFET Board"
+                onUpdate={handleUpdateMosfetBoard}
+                onDelete={handleDeleteMosfetBoard}
+                updatePending={updateMosfetBoard.isPending}
+                deletePending={deleteMosfetBoard.isPending}
+              />
             </div>
           ))}
         </div>
@@ -423,11 +668,20 @@ export default function PinManagerPage() {
                 const usedPins =
                   (avail?.digitalUsed ?? 0) + (avail?.analogUsed ?? 0);
                 return (
-                  <TabsTrigger key={board.id} value={board.id}>
+                  <TabsTrigger key={board.id} value={board.id} className="gap-1.5">
                     {board.name}
-                    <span className="ml-1.5 text-xs text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {usedPins}/{totalPins}
                     </span>
+                    <BoardActionsMenu
+                      boardId={board.id}
+                      boardName={board.name}
+                      boardType="Arduino Board"
+                      onUpdate={handleUpdateBoard}
+                      onDelete={handleDeleteBoard}
+                      updatePending={updateBoard.isPending}
+                      deletePending={deleteBoard.isPending}
+                    />
                   </TabsTrigger>
                 );
               })}

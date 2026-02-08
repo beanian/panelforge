@@ -1,7 +1,7 @@
 export const MEGA_2560 = {
   digitalPins: Array.from({ length: 54 }, (_, i) => `D${i}`),
   analogPins: Array.from({ length: 16 }, (_, i) => `A${i}`),
-  pwmPins: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46].map((n) => `D${n}`),
+  pwmPins: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((n) => `D${n}`),
   reservedPins: ['D0', 'D1'],
 };
 

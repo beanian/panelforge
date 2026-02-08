@@ -1,5 +1,17 @@
 import { Routes, Route, NavLink } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
+import {
+  Map,
+  Cpu,
+  Library,
+  Zap,
+  Cable,
+  Radio,
+  ClipboardList,
+  BookOpen,
+  FileText,
+  Crosshair,
+} from 'lucide-react';
 import PanelMapPage from '@/pages/PanelMapPage';
 import ComponentLibraryPage from '@/pages/ComponentLibraryPage';
 import PinManagerPage from '@/pages/PinManagerPage';
@@ -11,20 +23,46 @@ import JournalPage from '@/pages/JournalPage';
 import ReferencePage from '@/pages/ReferencePage';
 import SectionCalibrationPage from '@/pages/SectionCalibrationPage';
 
-function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
+const NAV_ITEMS = [
+  { to: '/', label: 'Panel Map', icon: Map },
+  { to: '/pins', label: 'Pin Manager', icon: Cpu },
+  { to: '/components', label: 'Components', icon: Library },
+  { to: '/power', label: 'Power Budget', icon: Zap },
+  { to: '/wiring', label: 'Wiring', icon: Cable },
+  { to: '/mobiflight', label: 'MobiFlight', icon: Radio },
+  { to: '/bom', label: 'BOM', icon: ClipboardList },
+  { to: '/journal', label: 'Journal', icon: BookOpen },
+  { to: '/reference', label: 'Reference', icon: FileText },
+  { to: '/calibrate-sections', label: 'Calibrate', icon: Crosshair },
+] as const;
+
+function NavItem({
+  to,
+  label,
+  icon: Icon,
+}: {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}) {
   return (
     <NavLink
       to={to}
       end
-      className={({ isActive }) =>
-        `px-2 py-1.5 rounded-md text-sm transition-colors duration-150 ${
-          isActive
-            ? 'bg-accent text-accent-foreground font-medium'
-            : 'hover:bg-accent text-foreground'
-        }`
-      }
     >
-      {children}
+      {({ isActive }) => (
+        <span
+          data-active={isActive}
+          className={`nav-link flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200 ${
+            isActive
+              ? 'bg-accent text-accent-foreground font-medium'
+              : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
+          }`}
+        >
+          <Icon className={`size-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+          {label}
+        </span>
+      )}
     </NavLink>
   );
 }
@@ -33,20 +71,38 @@ export default function App() {
   return (
     <>
       <div className="flex h-screen">
-        <nav className="w-64 border-r bg-muted/40 p-4 flex flex-col gap-1">
-          <h1 className="text-lg font-bold mb-4 px-2">PanelForge</h1>
-          <NavItem to="/">Panel Map</NavItem>
-          <NavItem to="/pins">Pin Manager</NavItem>
-          <NavItem to="/components">Component Library</NavItem>
-          <NavItem to="/power">Power Budget</NavItem>
-          <NavItem to="/wiring">Wiring Diagram</NavItem>
-          <NavItem to="/mobiflight">MobiFlight</NavItem>
-          <NavItem to="/bom">BOM Generator</NavItem>
-          <NavItem to="/journal">Journal</NavItem>
-          <NavItem to="/reference">Reference</NavItem>
-          <NavItem to="/calibrate-sections">Calibrate Sections</NavItem>
+        {/* Sidebar */}
+        <nav className="w-56 border-r border-border/50 bg-sidebar flex flex-col">
+          {/* Brand */}
+          <div className="px-4 py-5 border-b border-border/50">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-lg bg-primary/15 flex items-center justify-center">
+                <span className="text-primary font-bold text-sm font-mono">PF</span>
+              </div>
+              <div>
+                <h1 className="text-sm font-semibold tracking-tight">PanelForge</h1>
+                <p className="text-[10px] text-muted-foreground font-mono tracking-wider uppercase">BAe 146 Build</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav links */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5">
+            {NAV_ITEMS.map((item) => (
+              <NavItem key={item.to} {...item} />
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div className="px-4 py-3 border-t border-border/50">
+            <p className="text-[10px] text-muted-foreground/60 font-mono">
+              v0.1.0
+            </p>
+          </div>
         </nav>
-        <main className="flex-1 overflow-auto p-6">
+
+        {/* Main content */}
+        <main className="flex-1 overflow-auto p-6 bg-background">
           <Routes>
             <Route path="/" element={<PanelMapPage />} />
             <Route path="/pins" element={<PinManagerPage />} />
@@ -61,7 +117,12 @@ export default function App() {
           </Routes>
         </main>
       </div>
-      <Toaster />
+      <Toaster
+        theme="dark"
+        toastOptions={{
+          className: 'font-sans',
+        }}
+      />
     </>
   );
 }

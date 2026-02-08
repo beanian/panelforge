@@ -136,4 +136,33 @@ export const mosfetService = {
       },
     });
   },
+
+  async remove(id: string) {
+    const board = await prisma.mosfetBoard.findUnique({
+      where: { id },
+      include: {
+        channels: {
+          where: { pinAssignment: { isNot: null } },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!board) {
+      throw new AppError(404, 'MOSFET board not found');
+    }
+
+    if (board.channels.length > 0) {
+      throw new AppError(
+        409,
+        `Cannot delete MOSFET board "${board.name}" because ${board.channels.length} channel(s) are in use. Remove them first.`,
+      );
+    }
+
+    // Delete channels first, then the board
+    await prisma.$transaction([
+      prisma.mosfetChannel.deleteMany({ where: { mosfetBoardId: id } }),
+      prisma.mosfetBoard.delete({ where: { id } }),
+    ]);
+  },
 };

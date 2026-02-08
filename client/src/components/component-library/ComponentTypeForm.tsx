@@ -43,7 +43,8 @@ export function ComponentTypeForm({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [defaultPinCount, setDefaultPinCount] = useState(1);
-  const [pinTypesRequired, setPinTypesRequired] = useState<string[]>([]);
+  const [pinLabels, setPinLabels] = useState<string[]>([]);
+  const [pinTypes, setPinTypes] = useState<string[]>([]);
   const [defaultPowerRail, setDefaultPowerRail] = useState('FIVE_V');
   const [defaultPinMode, setDefaultPinMode] = useState('INPUT');
   const [pwmRequired, setPwmRequired] = useState(false);
@@ -56,7 +57,8 @@ export function ComponentTypeForm({
         setName(componentType.name);
         setDescription(componentType.description ?? '');
         setDefaultPinCount(componentType.defaultPinCount);
-        setPinTypesRequired(componentType.pinTypesRequired);
+        setPinLabels(componentType.pinLabels ?? []);
+        setPinTypes(componentType.pinTypes ?? []);
         setDefaultPowerRail(componentType.defaultPowerRail);
         setDefaultPinMode(componentType.defaultPinMode);
         setPwmRequired(componentType.pwmRequired);
@@ -66,7 +68,8 @@ export function ComponentTypeForm({
         setName('');
         setDescription('');
         setDefaultPinCount(1);
-        setPinTypesRequired([]);
+        setPinLabels([]);
+        setPinTypes([]);
         setDefaultPowerRail('FIVE_V');
         setDefaultPinMode('INPUT');
         setPwmRequired(false);
@@ -76,10 +79,18 @@ export function ComponentTypeForm({
     }
   }, [open, componentType]);
 
-  function togglePinType(type: string) {
-    setPinTypesRequired((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
-    );
+  function handlePinCountChange(count: number) {
+    setDefaultPinCount(count);
+    setPinLabels((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? ''));
+    setPinTypes((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? 'ANY'));
+  }
+
+  function handlePinLabelChange(index: number, value: string) {
+    setPinLabels((prev) => prev.map((l, i) => (i === index ? value : l)));
+  }
+
+  function handlePinTypeChange(index: number, value: string) {
+    setPinTypes((prev) => prev.map((t, i) => (i === index ? value : t)));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -89,7 +100,8 @@ export function ComponentTypeForm({
       name: name.trim(),
       description: description.trim() || null,
       defaultPinCount,
-      pinTypesRequired,
+      pinLabels: pinLabels.slice(0, defaultPinCount).map((l) => l.trim()),
+      pinTypes: pinTypes.slice(0, defaultPinCount),
       defaultPowerRail,
       defaultPinMode,
       pwmRequired,
@@ -163,28 +175,48 @@ export function ComponentTypeForm({
               min={1}
               max={20}
               value={defaultPinCount}
-              onChange={(e) => setDefaultPinCount(Number(e.target.value))}
+              onChange={(e) => handlePinCountChange(Number(e.target.value))}
               required
             />
           </div>
 
-          {/* Pin Types Required */}
-          <div className="grid gap-2">
-            <Label>Pin Types Required</Label>
-            <div className="flex gap-4">
-              {['DIGITAL', 'ANALOG'].map((type) => (
-                <label key={type} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={pinTypesRequired.includes(type)}
-                    onChange={() => togglePinType(type)}
-                    className="size-4 rounded border-input accent-primary"
-                  />
-                  {type.charAt(0) + type.slice(1).toLowerCase()}
-                </label>
-              ))}
+          {/* Pin Configuration */}
+          {defaultPinCount > 0 && (
+            <div className="grid gap-2">
+              <Label>Pin Configuration</Label>
+              <p className="text-xs text-muted-foreground">
+                Label each pin and set its type (Digital, Analog, or Either).
+              </p>
+              <div className="grid gap-1.5">
+                {Array.from({ length: defaultPinCount }, (_, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
+                      Pin {i + 1}
+                    </span>
+                    <Input
+                      value={pinLabels[i] ?? ''}
+                      onChange={(e) => handlePinLabelChange(i, e.target.value)}
+                      placeholder="Label"
+                      className="h-8 text-sm flex-1"
+                    />
+                    <Select
+                      value={pinTypes[i] ?? 'ANY'}
+                      onValueChange={(v) => handlePinTypeChange(i, v)}
+                    >
+                      <SelectTrigger className="h-8 w-[110px] text-sm shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DIGITAL">Digital</SelectItem>
+                        <SelectItem value="ANALOG">Analog</SelectItem>
+                        <SelectItem value="ANY">Either</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Default Power Rail */}
           <div className="grid gap-2">

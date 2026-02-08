@@ -41,7 +41,6 @@ describe('createComponentTypeSchema', () => {
   const valid = {
     name: 'Toggle Switch',
     defaultPinCount: 1,
-    pinTypesRequired: ['DIGITAL'],
   };
 
   it('accepts valid input with defaults', () => {
@@ -50,6 +49,7 @@ describe('createComponentTypeSchema', () => {
     expect(result.defaultPinMode).toBe('INPUT');
     expect(result.pwmRequired).toBe(false);
     expect(result.requiresMosfet).toBe(false);
+    expect(result.pinTypes).toEqual([]);
   });
 
   it('defaults requiresMosfet to false', () => {
@@ -62,20 +62,26 @@ describe('createComponentTypeSchema', () => {
     expect(result.requiresMosfet).toBe(true);
   });
 
-  it('validates pinTypesRequired enum', () => {
+  it('validates pinTypes enum values', () => {
     const result = createComponentTypeSchema.safeParse({
       ...valid,
-      pinTypesRequired: ['INVALID'],
+      pinTypes: ['INVALID'],
     });
     expect(result.success).toBe(false);
   });
 
-  it('requires at least one pinTypesRequired', () => {
-    const result = createComponentTypeSchema.safeParse({
+  it('accepts DIGITAL, ANALOG, and ANY pin types', () => {
+    const result = createComponentTypeSchema.parse({
       ...valid,
-      pinTypesRequired: [],
+      defaultPinCount: 3,
+      pinTypes: ['DIGITAL', 'ANALOG', 'ANY'],
     });
-    expect(result.success).toBe(false);
+    expect(result.pinTypes).toEqual(['DIGITAL', 'ANALOG', 'ANY']);
+  });
+
+  it('defaults pinTypes to empty array', () => {
+    const result = createComponentTypeSchema.parse(valid);
+    expect(result.pinTypes).toEqual([]);
   });
 
   it('validates defaultPinCount is positive integer', () => {

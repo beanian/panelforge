@@ -32,3 +32,20 @@ export function useCreateBoard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['boards'] }),
   });
 }
+
+export function useUpdateBoard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; notes?: string }) =>
+      api.patch(`/boards/${id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['boards'] }),
+  });
+}
+
+export function useDeleteBoard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/boards/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['boards'] }),
+  });
+}

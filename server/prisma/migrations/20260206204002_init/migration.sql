@@ -26,7 +26,7 @@ CREATE TABLE "Board" (
     "boardType" TEXT NOT NULL DEFAULT 'Arduino Mega 2560',
     "digitalPinCount" INTEGER NOT NULL DEFAULT 54,
     "analogPinCount" INTEGER NOT NULL DEFAULT 16,
-    "pwmPins" INTEGER[] DEFAULT ARRAY[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 44, 45, 46]::INTEGER[],
+    "pwmPins" INTEGER[] DEFAULT ARRAY[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]::INTEGER[],
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

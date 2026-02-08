@@ -83,6 +83,11 @@ function ComponentTypeCard({
           <Badge variant="secondary">
             {componentType.defaultPinCount}{' '}
             {componentType.defaultPinCount === 1 ? 'pin' : 'pins'}
+            {componentType.pinLabels?.length > 0 && (
+              <span className="ml-1 font-normal opacity-70">
+                ({componentType.pinLabels.join(', ')})
+              </span>
+            )}
           </Badge>
 
           <Badge

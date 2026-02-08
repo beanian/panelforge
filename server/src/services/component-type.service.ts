@@ -30,7 +30,7 @@ export const componentTypeService = {
     name: string;
     description?: string;
     defaultPinCount: number;
-    pinTypesRequired: ('DIGITAL' | 'ANALOG')[];
+    pinTypes?: string[];
     defaultPowerRail?: string;
     defaultPinMode?: string;
     pwmRequired?: boolean;

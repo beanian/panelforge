@@ -28,7 +28,14 @@ export default function PanelMapPage() {
   const [drawingBox, setDrawingBox] = useState(false);
   const [drawnBox, setDrawnBox] = useState<BoundingBox | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [copySourceId, setCopySourceId] = useState<string | null>(null);
+  const [copySource, setCopySource] = useState<{
+    name: string;
+    componentTypeId: string;
+    panelSectionId: string;
+    powerRail: string;
+    mapWidth: number;
+    mapHeight: number;
+  } | null>(null);
   const [defaultSectionId, setDefaultSectionId] = useState<string | null>(null);
 
   // Zoom + Pan
@@ -85,37 +92,16 @@ export default function PanelMapPage() {
 
   const handleAddComponent = useCallback(() => {
     setDrawingBox(true);
-    setCopySourceId(null);
+    setCopySource(null);
   }, []);
 
   const handleDrawComplete = useCallback(
-    async (box: BoundingBox) => {
+    (box: BoundingBox) => {
       setDrawingBox(false);
-
-      if (copySourceId) {
-        // Copy flow: PATCH coords onto the copy and open flyout
-        try {
-          await api.patch(`/component-instances/${copySourceId}`, {
-            mapX: box.mapX,
-            mapY: box.mapY,
-            mapWidth: box.mapWidth,
-            mapHeight: box.mapHeight,
-          });
-          queryClient.invalidateQueries({ queryKey: ['component-instances', 'map-data'] });
-          queryClient.invalidateQueries({ queryKey: ['component-instances'] });
-          toast.success('Component copied');
-          setSelectedComponentId(copySourceId);
-          setComponentFlyoutOpen(true);
-        } catch (err: any) {
-          toast.error(`Failed to place copy: ${err.message}`);
-        }
-        setCopySourceId(null);
-        return;
-      }
-
-      // Normal add flow: detect section from box center, open wizard
       setDrawnBox(box);
       setWizardOpen(true);
+
+      // Auto-detect section from box center (fallback for non-copy adds)
       const centerX = box.mapX + box.mapWidth / 2;
       const centerY = box.mapY + box.mapHeight / 2;
       const matched = sectionSummaries?.find(
@@ -131,7 +117,7 @@ export default function PanelMapPage() {
       );
       setDefaultSectionId(matched?.id ?? null);
     },
-    [copySourceId, queryClient, sectionSummaries],
+    [sectionSummaries],
   );
 
   const handleWizardCreated = useCallback((id: string) => {
@@ -171,15 +157,16 @@ export default function PanelMapPage() {
     async (sourceId: string) => {
       try {
         const source = await api.get<any>(`/component-instances/${sourceId}`);
-        const copy = await api.post<any>('/component-instances', {
+        setCopySource({
           name: `${source.name} (copy)`,
           componentTypeId: source.componentType.id,
           panelSectionId: source.panelSection.id,
-          powerRail: source.powerRail ?? undefined,
+          powerRail: source.powerRail ?? 'NONE',
+          mapWidth: source.mapWidth ?? 3,
+          mapHeight: source.mapHeight ?? 3,
         });
-        setCopySourceId(copy.id);
         setDrawingBox(true);
-        toast.info('Draw a bounding box for the copy');
+        toast.info('Click to place the copied component');
       } catch (err: any) {
         toast.error(`Failed to copy: ${err.message}`);
       }
@@ -208,7 +195,7 @@ export default function PanelMapPage() {
       if (e.key === 'Escape') {
         if (drawingBox) {
           setDrawingBox(false);
-          setCopySourceId(null);
+          setCopySource(null);
         } else if (configureMode) {
           setConfigureMode(false);
         }
@@ -249,8 +236,8 @@ export default function PanelMapPage() {
       {drawingBox && (
         <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-300">
           <span>
-            {copySourceId
-              ? 'Draw a bounding box for the copied component. Click and drag.'
+            {copySource
+              ? 'Click to place the copied component.'
               : 'Draw a bounding box for the new component. Click and drag.'}
           </span>
           <Button
@@ -258,7 +245,7 @@ export default function PanelMapPage() {
             variant="outline"
             onClick={() => {
               setDrawingBox(false);
-              setCopySourceId(null);
+              setCopySource(null);
             }}
           >
             Cancel
@@ -273,6 +260,7 @@ export default function PanelMapPage() {
         onSelectComponent={handleSelectComponent}
         configureMode={configureMode}
         drawingBox={drawingBox}
+        placementSize={copySource ? { width: copySource.mapWidth, height: copySource.mapHeight } : undefined}
         onAddComponent={handleAddComponent}
         onCopyComponent={handleCopyComponent}
         onDeleteComponent={handleDeleteComponent}
@@ -307,10 +295,17 @@ export default function PanelMapPage() {
             if (!open) {
               setDrawnBox(null);
               setDefaultSectionId(null);
+              setCopySource(null);
             }
           }}
           boundingBox={drawnBox}
           defaultPanelSectionId={defaultSectionId ?? undefined}
+          defaults={copySource ? {
+            name: copySource.name,
+            componentTypeId: copySource.componentTypeId,
+            panelSectionId: copySource.panelSectionId,
+            powerRail: copySource.powerRail,
+          } : undefined}
           onCreated={handleWizardCreated}
         />
       )}

@@ -37,3 +37,20 @@ export function useCreateMosfetBoard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mosfet-boards'] }),
   });
 }
+
+export function useUpdateMosfetBoard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; name?: string; notes?: string }) =>
+      api.patch(`/mosfet-boards/${id}`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mosfet-boards'] }),
+  });
+}
+
+export function useDeleteMosfetBoard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/mosfet-boards/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['mosfet-boards'] }),
+  });
+}
