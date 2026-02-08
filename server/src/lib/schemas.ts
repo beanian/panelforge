@@ -15,4 +15,5 @@ export {
   pinAssignmentFiltersSchema,
   createJournalEntrySchema,
   updateJournalEntrySchema,
+  upsertMappingSchema,
 } from '../../../packages/shared/src/validators';

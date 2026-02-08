@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Cpu, Radio } from 'lucide-react';
+import { Download, Cpu, Radio, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import { useBoards } from '@/hooks/use-boards';
 import {
   useMobiFlightPreview,
   exportMobiFlightConfig,
+  useAutoAssignLvars,
 } from '@/hooks/use-mobiflight';
 
 // Device type badge styling
@@ -46,6 +47,7 @@ export default function MobiFlightPage() {
     isLoading: previewLoading,
     isError: previewError,
   } = useMobiFlightPreview(selectedBoardId);
+  const autoAssign = useAutoAssignLvars();
 
   const handleExport = async () => {
     if (!selectedBoardId || !preview) return;
@@ -60,6 +62,25 @@ export default function MobiFlightPage() {
     }
   };
 
+  const handleAutoAssign = () => {
+    if (!selectedBoardId) return;
+    autoAssign.mutate(selectedBoardId, {
+      onSuccess: (result) => {
+        const msg = [
+          result.assigned.length > 0 && `${result.assigned.length} assigned`,
+          result.skipped.length > 0 && `${result.skipped.length} skipped`,
+          result.failed.length > 0 && `${result.failed.length} failed`,
+        ]
+          .filter(Boolean)
+          .join(', ');
+        toast.success(`Auto-assign complete: ${msg}`);
+      },
+      onError: (err) => {
+        toast.error(`Auto-assign failed: ${err.message}`);
+      },
+    });
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -70,13 +91,23 @@ export default function MobiFlightPage() {
             Preview and export MobiFlight Connector configurations per board
           </p>
         </div>
-        <Button
-          onClick={handleExport}
-          disabled={!selectedBoardId || !preview || preview.deviceCount === 0 || exporting}
-        >
-          <Download className="size-4" />
-          {exporting ? 'Exporting...' : 'Export .mfmc'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleAutoAssign}
+            disabled={!selectedBoardId || autoAssign.isPending}
+          >
+            <Wand2 className="size-4" />
+            {autoAssign.isPending ? 'Assigning...' : 'Auto-Assign LVARs'}
+          </Button>
+          <Button
+            onClick={handleExport}
+            disabled={!selectedBoardId || !preview || preview.deviceCount === 0 || exporting}
+          >
+            <Download className="size-4" />
+            {exporting ? 'Exporting...' : 'Export .mfmc'}
+          </Button>
+        </div>
       </div>
 
       {/* Board Selector */}

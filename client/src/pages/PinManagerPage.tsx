@@ -39,6 +39,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { InlineEdit } from '@/components/pin-manager/InlineEdit';
+import { LvarPicker } from '@/components/LvarPicker';
 
 import { useBoards, useCreateBoard, useUpdateBoard, useDeleteBoard, type Board } from '@/hooks/use-boards';
 import { useMosfetBoards, useCreateMosfetBoard, useUpdateMosfetBoard, useDeleteMosfetBoard } from '@/hooks/use-mosfet-boards';
@@ -939,10 +940,11 @@ function PinRow({
       </TableCell>
       <TableCell className="text-sm font-mono">{pin.pinMode}</TableCell>
       <TableCell>
-        <InlineEdit
-          value={pin.mobiFlightMapping?.variableName ?? ''}
-          onSave={(val) => onSave(pin.id, 'mobiFlightVariable', val)}
-          className="font-mono text-xs"
+        <LvarPicker
+          pinAssignmentId={pin.id}
+          currentMapping={pin.mobiFlightMapping}
+          componentName={pin.componentInstance?.name}
+          sectionSlug={pin.componentInstance?.panelSection?.slug}
         />
       </TableCell>
       <TableCell>

@@ -154,6 +154,14 @@ export const updateMobiFlightMappingSchema = createMobiFlightMappingSchema
   .partial()
   .omit({ pinAssignmentId: true });
 
+export const upsertMappingSchema = z.object({
+  variableName: z.string().min(1),
+  variableType: z.enum(['SIMVAR', 'LVAR', 'HVAR']).optional(),
+  eventType: z
+    .enum(['INPUT_ACTION', 'OUTPUT_CONDITION', 'STEPPER_GAUGE', 'LED_PWM'])
+    .optional(),
+});
+
 // ─── Journal Entry ──────────────────────────────────────
 
 export const createJournalEntrySchema = z.object({

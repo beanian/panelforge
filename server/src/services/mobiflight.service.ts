@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
+import { lvarReferenceService } from './lvar-reference.service';
 
 interface MobiFlightDevice {
   pinNumber: string;
@@ -31,6 +32,28 @@ function mapPinModeToDeviceType(
     default:
       return 'Button';
   }
+}
+
+/**
+ * Auto-detect eventType from LVAR name suffix.
+ */
+function detectEventType(variableName: string): string {
+  if (variableName.endsWith('_needle')) return 'STEPPER_GAUGE';
+  if (variableName.endsWith('_il')) return 'LED_PWM';
+  if (
+    variableName.endsWith('_IsDown') ||
+    variableName.endsWith('_MinReleaseTime') ||
+    variableName.endsWith('_LeftLeaveToRun')
+  ) {
+    return 'INPUT_ACTION';
+  }
+  if (variableName.endsWith('_posX') || variableName.endsWith('_posY')) {
+    return 'INPUT_ACTION';
+  }
+  if (variableName.endsWith('_guard') || variableName.endsWith('_cover')) {
+    return 'INPUT_ACTION';
+  }
+  return 'INPUT_ACTION';
 }
 
 export const mobiFlightService = {
@@ -151,5 +174,167 @@ export const mobiFlightService = {
         ...(device.pairedPin ? { pairedPin: device.pairedPin } : {}),
       })),
     };
+  },
+
+  /**
+   * Upsert a MobiFlight mapping for a pin assignment.
+   */
+  async upsertMapping(
+    pinAssignmentId: string,
+    data: {
+      variableName: string;
+      variableType?: string;
+      eventType?: string;
+    },
+  ) {
+    const pin = await prisma.pinAssignment.findUnique({
+      where: { id: pinAssignmentId },
+      include: { mobiFlightMapping: true },
+    });
+
+    if (!pin) {
+      throw new AppError(404, 'Pin assignment not found');
+    }
+
+    const variableType = data.variableType ?? 'LVAR';
+    const eventType = data.eventType ?? detectEventType(data.variableName);
+
+    if (pin.mobiFlightMapping) {
+      // Update existing
+      return prisma.mobiFlightMapping.update({
+        where: { id: pin.mobiFlightMapping.id },
+        data: {
+          variableName: data.variableName,
+          variableType,
+          eventType,
+        },
+      });
+    } else {
+      // Create new
+      return prisma.mobiFlightMapping.create({
+        data: {
+          pinAssignmentId,
+          variableName: data.variableName,
+          variableType,
+          eventType,
+        },
+      });
+    }
+  },
+
+  /**
+   * Delete a MobiFlight mapping for a pin assignment.
+   */
+  async deleteMapping(pinAssignmentId: string) {
+    const pin = await prisma.pinAssignment.findUnique({
+      where: { id: pinAssignmentId },
+      include: { mobiFlightMapping: true },
+    });
+
+    if (!pin) {
+      throw new AppError(404, 'Pin assignment not found');
+    }
+
+    if (!pin.mobiFlightMapping) {
+      throw new AppError(404, 'No mapping found for this pin assignment');
+    }
+
+    await prisma.mobiFlightMapping.delete({
+      where: { id: pin.mobiFlightMapping.id },
+    });
+  },
+
+  /**
+   * Auto-assign LVARs for all pins on a board that have a component but no mapping.
+   */
+  async autoAssign(boardId: string) {
+    const board = await prisma.board.findUnique({
+      where: { id: boardId },
+      include: {
+        pinAssignments: {
+          where: { componentInstanceId: { not: null } },
+          include: {
+            componentInstance: {
+              include: {
+                panelSection: true,
+                componentType: true,
+              },
+            },
+            mobiFlightMapping: true,
+          },
+        },
+      },
+    });
+
+    if (!board) {
+      throw new AppError(404, 'Board not found');
+    }
+
+    const assigned: { pinId: string; pinNumber: string; variableName: string }[] = [];
+    const skipped: { pinId: string; pinNumber: string; reason: string }[] = [];
+    const failed: { pinId: string; pinNumber: string; error: string }[] = [];
+
+    for (const pin of board.pinAssignments) {
+      // Skip if already mapped
+      if (pin.mobiFlightMapping) {
+        skipped.push({
+          pinId: pin.id,
+          pinNumber: pin.pinNumber,
+          reason: 'Already has mapping',
+        });
+        continue;
+      }
+
+      if (!pin.componentInstance) {
+        skipped.push({
+          pinId: pin.id,
+          pinNumber: pin.pinNumber,
+          reason: 'No component assigned',
+        });
+        continue;
+      }
+
+      const componentName = pin.componentInstance.name;
+      const sectionSlug = pin.componentInstance.panelSection?.slug ?? null;
+
+      const suggestions = lvarReferenceService.suggestForPin(componentName, sectionSlug);
+
+      if (suggestions.length === 0) {
+        skipped.push({
+          pinId: pin.id,
+          pinNumber: pin.pinNumber,
+          reason: `No LVAR match for "${componentName}"`,
+        });
+        continue;
+      }
+
+      // Take the best match
+      const best = suggestions[0];
+
+      try {
+        await prisma.mobiFlightMapping.create({
+          data: {
+            pinAssignmentId: pin.id,
+            variableName: best.name,
+            variableType: 'LVAR',
+            eventType: detectEventType(best.name),
+          },
+        });
+
+        assigned.push({
+          pinId: pin.id,
+          pinNumber: pin.pinNumber,
+          variableName: best.name,
+        });
+      } catch (err: any) {
+        failed.push({
+          pinId: pin.id,
+          pinNumber: pin.pinNumber,
+          error: err.message,
+        });
+      }
+    }
+
+    return { assigned, skipped, failed };
   },
 };

@@ -17,13 +17,14 @@ export interface PinAssignment {
   componentInstance: {
     id: string;
     name: string;
-    panelSection: { id: string; name: string };
+    panelSection: { id: string; name: string; slug: string };
     componentType: { id: string; name: string };
   } | null;
   mobiFlightMapping: {
     id: string;
     variableName: string;
     variableType: string;
+    eventType: string | null;
   } | null;
 }
 

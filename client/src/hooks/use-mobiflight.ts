@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export interface MobiFlightDevice {
@@ -22,6 +22,12 @@ export interface MobiFlightExport extends MobiFlightPreview {
   serialNumber: string;
 }
 
+export interface AutoAssignResult {
+  assigned: { pinId: string; pinNumber: string; variableName: string }[];
+  skipped: { pinId: string; pinNumber: string; reason: string }[];
+  failed: { pinId: string; pinNumber: string; error: string }[];
+}
+
 export function useMobiFlightPreview(boardId: string | null) {
   return useQuery<MobiFlightPreview>({
     queryKey: ['mobiflight-preview', boardId],
@@ -40,4 +46,16 @@ export async function exportMobiFlightConfig(boardId: string, boardName: string)
   a.click();
   URL.revokeObjectURL(url);
   return data;
+}
+
+export function useAutoAssignLvars() {
+  const queryClient = useQueryClient();
+  return useMutation<AutoAssignResult, Error, string>({
+    mutationFn: (boardId: string) =>
+      api.post(`/mobiflight/auto-assign/${boardId}`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['mobiflight-preview'] });
+      queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
+    },
+  });
 }
