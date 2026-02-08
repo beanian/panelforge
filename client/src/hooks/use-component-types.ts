@@ -8,10 +8,12 @@ export interface ComponentType {
   defaultPinCount: number;
   pinLabels: string[];
   pinTypes: string[];
-  defaultPowerRail: string;
+  pinPowerRails: string[];
+  pinMosfetRequired: boolean[];
   defaultPinMode: string;
   pwmRequired: boolean;
-  requiresMosfet: boolean;
+  typicalCurrentMa: number;
+  standbyCurrentMa: number;
   mobiFlightTemplate: unknown | null;
   notes: string | null;
   _count?: { componentInstances: number };

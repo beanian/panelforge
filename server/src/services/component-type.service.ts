@@ -31,7 +31,8 @@ export const componentTypeService = {
     description?: string;
     defaultPinCount: number;
     pinTypes?: string[];
-    defaultPowerRail?: string;
+    pinPowerRails?: string[];
+    pinMosfetRequired?: boolean[];
     defaultPinMode?: string;
     pwmRequired?: boolean;
     mobiFlightTemplate?: unknown;

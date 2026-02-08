@@ -13,6 +13,7 @@ import {
   createComponentInstanceSchema,
   updateComponentInstanceSchema,
   updatePinAssignmentSchema,
+  updatePsuConfigSchema,
 } from './index';
 
 describe('createBoardSchema', () => {
@@ -45,21 +46,31 @@ describe('createComponentTypeSchema', () => {
 
   it('accepts valid input with defaults', () => {
     const result = createComponentTypeSchema.parse(valid);
-    expect(result.defaultPowerRail).toBe('NONE');
+    expect(result.pinPowerRails).toEqual([]);
+    expect(result.pinMosfetRequired).toEqual([]);
     expect(result.defaultPinMode).toBe('INPUT');
     expect(result.pwmRequired).toBe(false);
-    expect(result.requiresMosfet).toBe(false);
     expect(result.pinTypes).toEqual([]);
   });
 
-  it('defaults requiresMosfet to false', () => {
+  it('defaults pinMosfetRequired to empty array', () => {
     const result = createComponentTypeSchema.parse(valid);
-    expect(result.requiresMosfet).toBe(false);
+    expect(result.pinMosfetRequired).toEqual([]);
   });
 
-  it('accepts requiresMosfet true', () => {
-    const result = createComponentTypeSchema.parse({ ...valid, requiresMosfet: true });
-    expect(result.requiresMosfet).toBe(true);
+  it('accepts pinMosfetRequired with values', () => {
+    const result = createComponentTypeSchema.parse({ ...valid, pinMosfetRequired: [true, false] });
+    expect(result.pinMosfetRequired).toEqual([true, false]);
+  });
+
+  it('accepts pinPowerRails with values', () => {
+    const result = createComponentTypeSchema.parse({ ...valid, pinPowerRails: ['FIVE_V', 'TWENTY_SEVEN_V'] });
+    expect(result.pinPowerRails).toEqual(['FIVE_V', 'TWENTY_SEVEN_V']);
+  });
+
+  it('rejects invalid pinPowerRails enum values', () => {
+    const result = createComponentTypeSchema.safeParse({ ...valid, pinPowerRails: ['INVALID'] });
+    expect(result.success).toBe(false);
   });
 
   it('validates pinTypes enum values', () => {
@@ -84,11 +95,36 @@ describe('createComponentTypeSchema', () => {
     expect(result.pinTypes).toEqual([]);
   });
 
+  it('rejects pinLabels exceeding 50 characters', () => {
+    const result = createComponentTypeSchema.safeParse({
+      ...valid,
+      pinLabels: ['a'.repeat(51)],
+    });
+    expect(result.success).toBe(false);
+  });
+
   it('validates defaultPinCount is positive integer', () => {
     const bad1 = createComponentTypeSchema.safeParse({ ...valid, defaultPinCount: 0 });
     const bad2 = createComponentTypeSchema.safeParse({ ...valid, defaultPinCount: 1.5 });
     expect(bad1.success).toBe(false);
     expect(bad2.success).toBe(false);
+  });
+
+  it('defaults typicalCurrentMa to 0', () => {
+    const result = createComponentTypeSchema.parse(valid);
+    expect(result.typicalCurrentMa).toBe(0);
+    expect(result.standbyCurrentMa).toBe(0);
+  });
+
+  it('accepts valid current draw values', () => {
+    const result = createComponentTypeSchema.parse({ ...valid, typicalCurrentMa: 80, standbyCurrentMa: 10 });
+    expect(result.typicalCurrentMa).toBe(80);
+    expect(result.standbyCurrentMa).toBe(10);
+  });
+
+  it('rejects negative current draw', () => {
+    expect(createComponentTypeSchema.safeParse({ ...valid, typicalCurrentMa: -1 }).success).toBe(false);
+    expect(createComponentTypeSchema.safeParse({ ...valid, standbyCurrentMa: -5 }).success).toBe(false);
   });
 });
 
@@ -491,6 +527,47 @@ describe('updatePinAssignmentSchema', () => {
     const result = updatePinAssignmentSchema.safeParse({
       mosfetChannelId: null,
     });
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('updatePsuConfigSchema', () => {
+  it('accepts valid partial update', () => {
+    const result = updatePsuConfigSchema.safeParse({
+      name: 'My PSU',
+      capacityWatts: 500,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects efficiency below 0.5', () => {
+    const result = updatePsuConfigSchema.safeParse({ converterEfficiency: 0.3 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects efficiency above 1.0', () => {
+    const result = updatePsuConfigSchema.safeParse({ converterEfficiency: 1.1 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects negative capacity', () => {
+    const result = updatePsuConfigSchema.safeParse({ capacityWatts: -100 });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects zero capacity', () => {
+    const result = updatePsuConfigSchema.safeParse({ capacityWatts: 0 });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid efficiency range', () => {
+    expect(updatePsuConfigSchema.safeParse({ converterEfficiency: 0.5 }).success).toBe(true);
+    expect(updatePsuConfigSchema.safeParse({ converterEfficiency: 1.0 }).success).toBe(true);
+    expect(updatePsuConfigSchema.safeParse({ converterEfficiency: 0.87 }).success).toBe(true);
+  });
+
+  it('accepts nullable notes', () => {
+    const result = updatePsuConfigSchema.safeParse({ notes: null });
     expect(result.success).toBe(true);
   });
 });

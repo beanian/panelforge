@@ -2,87 +2,90 @@ import { describe, it, expect } from 'vitest';
 import { prismaMock } from '../test/prisma-mock';
 import { powerBudgetService } from './power-budget.service';
 
+function mockDefaults() {
+  prismaMock.componentInstance.findMany.mockResolvedValue([]);
+  prismaMock.board.count.mockResolvedValue(1);
+  prismaMock.mosfetBoard.count.mockResolvedValue(0);
+  prismaMock.mosfetBoard.findMany.mockResolvedValue([]);
+  prismaMock.psuConfig.findUnique.mockResolvedValue({
+    id: 'singleton',
+    name: 'Main PSU',
+    capacityWatts: 350,
+    converterEfficiency: 0.87,
+    notes: null,
+    updatedAt: new Date(),
+  });
+}
+
 describe('powerBudgetService.getPowerBudget', () => {
-  it('aggregates connections per rail', async () => {
-    prismaMock.pinAssignment.findMany.mockResolvedValue([
+  it('returns enriched components with effective power rail', async () => {
+    mockDefaults();
+    prismaMock.componentInstance.findMany.mockResolvedValue([
       {
-        powerRail: 'FIVE_V',
-        componentInstance: {
-          panelSectionId: 's1',
-          panelSection: { name: 'Section 1' },
-        },
-      },
-      {
-        powerRail: 'FIVE_V',
-        componentInstance: {
-          panelSectionId: 's1',
-          panelSection: { name: 'Section 1' },
-        },
-      },
-      {
-        powerRail: 'NINE_V',
-        componentInstance: {
-          panelSectionId: 's1',
-          panelSection: { name: 'Section 1' },
+        id: 'ci-1',
+        name: 'Gauge 1',
+        powerRail: null,
+        panelSectionId: 's1',
+        panelSection: { name: 'Air Supply' },
+        componentType: {
+          name: 'Gauge',
+          pinPowerRails: ['NINE_V', 'NINE_V'],
+          typicalCurrentMa: 20,
+          standbyCurrentMa: 0,
         },
       },
     ] as any);
 
-    prismaMock.mosfetBoard.findMany.mockResolvedValue([]);
-
     const result = await powerBudgetService.getPowerBudget();
-    const fiveV = result.rails.find((r) => r.rail === 'FIVE_V');
-    const nineV = result.rails.find((r) => r.rail === 'NINE_V');
-
-    expect(fiveV?.totalConnections).toBe(2);
-    expect(nineV?.totalConnections).toBe(1);
+    expect(result.components).toHaveLength(1);
+    expect(result.components[0].powerRail).toBe('NINE_V');
+    expect(result.components[0].typicalCurrentMa).toBe(20);
   });
 
-  it('groups by section within each rail', async () => {
-    prismaMock.pinAssignment.findMany.mockResolvedValue([
+  it('uses instance powerRail override when set', async () => {
+    mockDefaults();
+    prismaMock.componentInstance.findMany.mockResolvedValue([
       {
+        id: 'ci-1',
+        name: 'Custom',
         powerRail: 'FIVE_V',
-        componentInstance: { panelSectionId: 's1', panelSection: { name: 'Section 1' } },
-      },
-      {
-        powerRail: 'FIVE_V',
-        componentInstance: { panelSectionId: 's2', panelSection: { name: 'Section 2' } },
-      },
-      {
-        powerRail: 'FIVE_V',
-        componentInstance: { panelSectionId: 's1', panelSection: { name: 'Section 1' } },
+        panelSectionId: 's1',
+        panelSection: { name: 'Section 1' },
+        componentType: {
+          name: 'Gauge',
+          pinPowerRails: ['NINE_V'],
+          typicalCurrentMa: 20,
+          standbyCurrentMa: 0,
+        },
       },
     ] as any);
 
-    prismaMock.mosfetBoard.findMany.mockResolvedValue([]);
-
     const result = await powerBudgetService.getPowerBudget();
-    const fiveV = result.rails.find((r) => r.rail === 'FIVE_V')!;
-    expect(fiveV.bySection).toHaveLength(2);
-
-    const s1 = fiveV.bySection.find((s) => s.sectionId === 's1');
-    const s2 = fiveV.bySection.find((s) => s.sectionId === 's2');
-    expect(s1?.count).toBe(2);
-    expect(s2?.count).toBe(1);
+    expect(result.components[0].powerRail).toBe('FIVE_V');
   });
 
-  it('handles null componentInstance gracefully', async () => {
-    prismaMock.pinAssignment.findMany.mockResolvedValue([
-      {
-        powerRail: 'FIVE_V',
-        componentInstance: null,
-      },
-    ] as any);
-
-    prismaMock.mosfetBoard.findMany.mockResolvedValue([]);
+  it('returns infrastructure board counts', async () => {
+    mockDefaults();
+    prismaMock.board.count.mockResolvedValue(2);
+    prismaMock.mosfetBoard.count.mockResolvedValue(3);
 
     const result = await powerBudgetService.getPowerBudget();
-    // The null instance should be skipped
-    expect(result.rails.find((r) => r.rail === 'FIVE_V')?.totalConnections).toBe(0);
+    expect(result.infrastructure.boardCount).toBe(2);
+    expect(result.infrastructure.mosfetBoardCount).toBe(3);
+    expect(result.infrastructure.estimatedBoardCurrentMa).toBe(2 * 50 + 3 * 30);
+  });
+
+  it('returns PSU config', async () => {
+    mockDefaults();
+
+    const result = await powerBudgetService.getPowerBudget();
+    expect(result.psuConfig.name).toBe('Main PSU');
+    expect(result.psuConfig.capacityWatts).toBe(350);
+    expect(result.psuConfig.converterEfficiency).toBe(0.87);
   });
 
   it('computes MOSFET channel used/free counts', async () => {
-    prismaMock.pinAssignment.findMany.mockResolvedValue([]);
+    mockDefaults();
     prismaMock.mosfetBoard.findMany.mockResolvedValue([
       {
         id: 'mb-1',
@@ -102,24 +105,25 @@ describe('powerBudgetService.getPowerBudget', () => {
     expect(result.mosfetBoards[0].freeChannels).toBe(2);
   });
 
-  it('returns all four rails even when empty', async () => {
-    prismaMock.pinAssignment.findMany.mockResolvedValue([]);
-    prismaMock.mosfetBoard.findMany.mockResolvedValue([]);
+  it('defaults NONE rail for types with all NONE pinPowerRails', async () => {
+    mockDefaults();
+    prismaMock.componentInstance.findMany.mockResolvedValue([
+      {
+        id: 'ci-1',
+        name: 'Switch',
+        powerRail: null,
+        panelSectionId: 's1',
+        panelSection: { name: 'Section 1' },
+        componentType: {
+          name: 'Toggle Switch',
+          pinPowerRails: ['NONE'],
+          typicalCurrentMa: 0,
+          standbyCurrentMa: 0,
+        },
+      },
+    ] as any);
 
     const result = await powerBudgetService.getPowerBudget();
-    expect(result.rails).toHaveLength(4);
-    expect(result.rails.map((r) => r.rail)).toEqual(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE']);
-    expect(result.rails.every((r) => r.totalConnections === 0)).toBe(true);
-  });
-
-  it('provides correct rail labels', async () => {
-    prismaMock.pinAssignment.findMany.mockResolvedValue([]);
-    prismaMock.mosfetBoard.findMany.mockResolvedValue([]);
-
-    const result = await powerBudgetService.getPowerBudget();
-    const labels = Object.fromEntries(result.rails.map((r) => [r.rail, r.label]));
-    expect(labels['FIVE_V']).toBe('5V');
-    expect(labels['NINE_V']).toBe('9V');
-    expect(labels['TWENTY_SEVEN_V']).toBe('27V');
+    expect(result.components[0].powerRail).toBe('NONE');
   });
 });

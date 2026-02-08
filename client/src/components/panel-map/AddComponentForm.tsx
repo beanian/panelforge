@@ -54,7 +54,7 @@ export function AddComponentForm({
 
   useEffect(() => {
     if (selectedType) {
-      setPowerRail(selectedType.defaultPowerRail);
+      setPowerRail(selectedType.pinPowerRails?.[0] ?? 'NONE');
     }
   }, [selectedType]);
 
@@ -66,7 +66,7 @@ export function AddComponentForm({
         name: name.trim(),
         componentTypeId,
         panelSectionId,
-        ...(powerRail && powerRail !== selectedType?.defaultPowerRail
+        ...(powerRail && powerRail !== (selectedType?.pinPowerRails?.[0] ?? 'NONE')
           ? { powerRail }
           : {}),
       });

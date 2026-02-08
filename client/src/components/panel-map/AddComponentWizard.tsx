@@ -30,17 +30,22 @@ import { Input } from '@/components/ui/input';
 import { MEGA_2560 } from '@/lib/constants';
 import type { BoundingBox } from './PanelMap';
 
-const POWER_RAIL_OPTIONS = [
-  { value: 'NONE', label: 'None' },
-  { value: 'FIVE_V', label: '5V' },
-  { value: 'NINE_V', label: '9V' },
-  { value: 'TWENTY_SEVEN_V', label: '27V' },
-];
+const POWER_RAIL_LABELS: Record<string, string> = {
+  FIVE_V: '5V',
+  NINE_V: '9V',
+  TWENTY_SEVEN_V: '27V',
+  NONE: 'None',
+};
 
 interface PinConfig {
   pinNumber: string;
   pinType: string;
   requiresPwm: boolean;
+}
+
+interface MosfetAssignment {
+  mosfetBoardId: string;
+  mosfetChannelId: string;
 }
 
 interface WizardDefaults {
@@ -67,15 +72,13 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   const [name, setName] = useState('');
   const [componentTypeId, setComponentTypeId] = useState('');
   const [panelSectionId, setPanelSectionId] = useState('');
-  const [powerRail, setPowerRail] = useState('');
 
   // Step 2 — Pin Wiring
   const [boardId, setBoardId] = useState('');
   const [pins, setPins] = useState<PinConfig[]>([]);
 
-  // Step 3 — MOSFET
-  const [mosfetBoardId, setMosfetBoardId] = useState('');
-  const [mosfetChannelId, setMosfetChannelId] = useState('');
+  // Step 3 — MOSFET (per-pin assignments)
+  const [mosfetAssignments, setMosfetAssignments] = useState<MosfetAssignment[]>([]);
 
   // Data hooks
   const { data: componentTypes } = useComponentTypes();
@@ -108,7 +111,6 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
         setComponentTypeId(defaults.componentTypeId);
         const ct = componentTypes.find((t) => t.id === defaults.componentTypeId);
         if (ct) {
-          setPowerRail(defaults.powerRail ?? ct.defaultPowerRail);
           setPins(
             Array.from({ length: ct.defaultPinCount }, (_, i) => ({
               pinNumber: '',
@@ -121,6 +123,11 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
               requiresPwm: ct.defaultPinMode === 'PWM' || ct.pwmRequired,
             })),
           );
+          // Init per-pin mosfet assignments
+          const mosfetPinIndices = (ct.pinMosfetRequired ?? [])
+            .map((req, i) => (req ? i : -1))
+            .filter((i) => i >= 0);
+          setMosfetAssignments(mosfetPinIndices.map(() => ({ mosfetBoardId: '', mosfetChannelId: '' })));
         }
       }
     } else {
@@ -133,8 +140,14 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
   const selectedType = componentTypes?.find((ct) => ct.id === componentTypeId);
   const selectedBoard = boards?.find((b) => b.id === boardId);
-  const showMosfetStep = selectedType?.requiresMosfet || selectedType?.pwmRequired || selectedType?.defaultPinMode === 'PWM';
-  const mosfetRequired = selectedType?.requiresMosfet ?? false;
+  const mosfetPinIndices = useMemo(() => {
+    if (!selectedType?.pinMosfetRequired) return [];
+    return selectedType.pinMosfetRequired
+      .map((req, i) => (req ? i : -1))
+      .filter((i) => i >= 0);
+  }, [selectedType]);
+  const showMosfetStep = mosfetPinIndices.length > 0;
+  const mosfetRequired = showMosfetStep;
   const totalSteps = showMosfetStep ? 3 : 2;
 
   // Compute available pins for the selected board
@@ -174,12 +187,10 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
     return pool.filter((p) => !othersSelected.has(p));
   }
 
-  // Auto-default power rail when type changes
   function handleTypeChange(typeId: string) {
     setComponentTypeId(typeId);
     const ct = componentTypes?.find((t) => t.id === typeId);
     if (ct) {
-      setPowerRail(ct.defaultPowerRail);
       const newPins: PinConfig[] = Array.from({ length: ct.defaultPinCount }, (_, i) => ({
         pinNumber: '',
         pinType: ct.pinTypes?.[i] === 'ANALOG' ? 'ANALOG'
@@ -188,6 +199,11 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
         requiresPwm: ct.defaultPinMode === 'PWM' || ct.pwmRequired,
       }));
       setPins(newPins);
+      // Init per-pin mosfet assignments
+      const indices = (ct.pinMosfetRequired ?? [])
+        .map((req, i) => (req ? i : -1))
+        .filter((i) => i >= 0);
+      setMosfetAssignments(indices.map(() => ({ mosfetBoardId: '', mosfetChannelId: '' })));
     }
   }
 
@@ -244,11 +260,9 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
     setName('');
     setComponentTypeId('');
     setPanelSectionId('');
-    setPowerRail('');
     setBoardId('');
     setPins([]);
-    setMosfetBoardId('');
-    setMosfetChannelId('');
+    setMosfetAssignments([]);
     setSubmitting(false);
   }
 
@@ -259,7 +273,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
   const canProceedStep0 = name.trim() && componentTypeId && panelSectionId;
   const hasPinConfig = boardId && pins.some((p) => p.pinNumber);
-  const mosfetReady = !mosfetRequired || mosfetChannelId !== '';
+  const mosfetReady = !mosfetRequired || mosfetAssignments.every((a) => a.mosfetChannelId !== '');
   const pinReady = !mosfetRequired || hasPinConfig;
 
   async function handleCreate() {
@@ -267,11 +281,13 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
     setSubmitting(true);
 
     try {
+      // Use first pin's power rail for backward compat display on ComponentInstance
+      const firstPinRail = selectedType?.pinPowerRails?.[0] ?? 'NONE';
       const instance = await createInstance.mutateAsync({
         name: name.trim(),
         componentTypeId,
         panelSectionId,
-        powerRail: powerRail || undefined,
+        powerRail: firstPinRail,
         mapX: boundingBox.mapX,
         mapY: boundingBox.mapY,
         mapWidth: boundingBox.mapWidth,
@@ -280,14 +296,15 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
       const instanceId = instance.id;
 
-      const createdPinIds: string[] = [];
+      // Track created pin IDs by component-pin index
+      const createdPinIds: (string | null)[] = Array.from({ length: pins.length }, () => null);
       if (hasPinConfig) {
         for (let i = 0; i < pins.length; i++) {
           const pin = pins[i];
           if (!pin.pinNumber) continue;
           const pinMode = pin.requiresPwm ? 'PWM' : (selectedType?.defaultPinMode ?? 'INPUT');
           const pinLabel = selectedType?.pinLabels?.[i];
-          // Derive actual pin type from pin number prefix
+          const pinPowerRail = selectedType?.pinPowerRails?.[i] ?? 'NONE';
           const actualPinType = pin.pinNumber.startsWith('A') ? 'ANALOG' : 'DIGITAL';
           const result = await createPin.mutateAsync({
             boardId,
@@ -295,16 +312,23 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
             pinType: actualPinType,
             pinMode,
             componentInstanceId: instanceId,
-            powerRail: powerRail || 'NONE',
+            powerRail: pinPowerRail,
             description: pinLabel || null,
           }) as any;
-          createdPinIds.push(result.id);
+          createdPinIds[i] = result.id;
         }
       }
 
-      if (mosfetChannelId && createdPinIds.length > 0) {
-        const pwmPinId = createdPinIds[0];
-        await updatePin.mutateAsync({ id: pwmPinId, mosfetChannelId });
+      // Assign MOSFET channels per-pin
+      if (mosfetAssignments.length > 0) {
+        for (let ai = 0; ai < mosfetPinIndices.length; ai++) {
+          const pinIdx = mosfetPinIndices[ai];
+          const assignment = mosfetAssignments[ai];
+          const pinId = createdPinIds[pinIdx];
+          if (pinId && assignment?.mosfetChannelId) {
+            await updatePin.mutateAsync({ id: pinId, mosfetChannelId: assignment.mosfetChannelId });
+          }
+        }
       }
 
       toast.success(`Created "${name.trim()}"`);
@@ -317,8 +341,10 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
     }
   }
 
-  const selectedMosfetBoard = mosfetBoards?.find((b) => b.id === mosfetBoardId);
-  const freeChannels = selectedMosfetBoard?.channels.filter((ch) => !ch.pinAssignment) ?? [];
+  // Compute free channels per MOSFET board, excluding channels selected by other pins in this wizard
+  const usedChannelIds = useMemo(() => {
+    return new Set(mosfetAssignments.map((a) => a.mosfetChannelId).filter(Boolean));
+  }, [mosfetAssignments]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -388,21 +414,16 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
               </Select>
             </div>
 
-            <div>
-              <Label>Power Rail</Label>
-              <Select value={powerRail || 'NONE'} onValueChange={setPowerRail}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {POWER_RAIL_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {selectedType && selectedType.pinPowerRails?.some((r) => r !== 'NONE') && (
+              <div className="flex flex-wrap gap-1.5">
+                <span className="text-xs text-muted-foreground">Power rails:</span>
+                {[...new Set(selectedType.pinPowerRails.filter((r) => r !== 'NONE'))].map((rail) => (
+                  <Badge key={rail} variant="outline" className="text-xs">
+                    {POWER_RAIL_LABELS[rail] ?? rail}
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -514,48 +535,76 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
           </div>
         )}
 
-        {/* Step 3: MOSFET Connection */}
+        {/* Step 3: MOSFET Connection (per-pin) */}
         {step === 2 && showMosfetStep && (
           <div className="flex flex-col gap-4">
-            <div>
-              <Label>MOSFET Board</Label>
-              <Select value={mosfetBoardId} onValueChange={(v) => { setMosfetBoardId(v); setMosfetChannelId(''); }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select MOSFET board..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {mosfetBoards?.map((mb) => (
-                    <SelectItem key={mb.id} value={mb.id}>
-                      {mb.name} ({mb.freeChannels} free)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {mosfetBoardId && (
-              <div>
-                <Label>Channel</Label>
-                <Select value={mosfetChannelId} onValueChange={setMosfetChannelId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select channel..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {freeChannels.map((ch) => (
-                      <SelectItem key={ch.id} value={ch.id}>
-                        Channel {ch.channelNumber}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
             <p className="text-xs text-muted-foreground">
-              {mosfetRequired
-                ? 'MOSFET connection is required for this component type.'
-                : 'MOSFET connection is optional — you can configure this later.'}
+              Assign a MOSFET board and channel for each pin that requires one.
             </p>
+
+            {mosfetPinIndices.map((pinIdx, ai) => {
+              const pinLabel = selectedType?.pinLabels?.[pinIdx] ?? `Pin ${pinIdx + 1}`;
+              const assignment = mosfetAssignments[ai] ?? { mosfetBoardId: '', mosfetChannelId: '' };
+              const selectedMosfetBoard = mosfetBoards?.find((b) => b.id === assignment.mosfetBoardId);
+              const freeChannels = selectedMosfetBoard?.channels.filter((ch) => {
+                if (ch.pinAssignment) return false;
+                // Exclude channels selected by other pins in this wizard
+                if (usedChannelIds.has(ch.id) && ch.id !== assignment.mosfetChannelId) return false;
+                return true;
+              }) ?? [];
+
+              return (
+                <div key={pinIdx} className="rounded-md border border-slate-700 p-3 flex flex-col gap-2">
+                  <span className="text-sm font-medium text-foreground">{pinLabel}</span>
+                  <div>
+                    <Label className="text-xs">MOSFET Board</Label>
+                    <Select
+                      value={assignment.mosfetBoardId || undefined}
+                      onValueChange={(v) => {
+                        setMosfetAssignments((prev) =>
+                          prev.map((a, i) => (i === ai ? { mosfetBoardId: v, mosfetChannelId: '' } : a)),
+                        );
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select board..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mosfetBoards?.map((mb) => (
+                          <SelectItem key={mb.id} value={mb.id}>
+                            {mb.name} ({mb.freeChannels} free)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {assignment.mosfetBoardId && (
+                    <div>
+                      <Label className="text-xs">Channel</Label>
+                      <Select
+                        value={assignment.mosfetChannelId || undefined}
+                        onValueChange={(v) => {
+                          setMosfetAssignments((prev) =>
+                            prev.map((a, i) => (i === ai ? { ...a, mosfetChannelId: v } : a)),
+                          );
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select channel..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {freeChannels.map((ch) => (
+                            <SelectItem key={ch.id} value={ch.id}>
+                              Channel {ch.channelNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 

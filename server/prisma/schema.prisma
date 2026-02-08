@@ -109,10 +109,12 @@ model ComponentType {
   defaultPinCount    Int
   pinLabels          String[]
   pinTypes           String[]
-  defaultPowerRail   PowerRail           @default(NONE)
+  pinPowerRails      String[]            @default([])
+  pinMosfetRequired  Boolean[]           @default([])
   defaultPinMode     PinMode             @default(INPUT)
   pwmRequired        Boolean             @default(false)
-  requiresMosfet     Boolean             @default(false)
+  typicalCurrentMa   Int                 @default(0)
+  standbyCurrentMa   Int                 @default(0)
   mobiFlightTemplate Json?
   notes              String?
   createdAt          DateTime            @default(now())
@@ -214,6 +216,17 @@ model MobiFlightMapping {
   updatedAt       DateTime            @updatedAt
 
   @@index([variableType])
+}
+
+// ─── PSU Config ──────────────────────────────────────────
+
+model PsuConfig {
+  id                  String   @id @default("singleton")
+  name                String   @default("Main PSU")
+  capacityWatts       Float    @default(350)
+  converterEfficiency Float    @default(0.87)
+  notes               String?
+  updatedAt           DateTime @updatedAt
 }
 
 // ─── Journal Entry ──────────────────────────────────────

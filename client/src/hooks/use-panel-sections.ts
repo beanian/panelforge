@@ -44,7 +44,7 @@ export interface ComponentInstanceDetail {
     name: string;
     description: string | null;
     defaultPinCount: number;
-    defaultPowerRail: string;
+    pinPowerRails: string[];
     defaultPinMode: string;
   };
   pinAssignments: {

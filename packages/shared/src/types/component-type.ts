@@ -7,7 +7,8 @@ export interface ComponentType {
   defaultPinCount: number;
   pinLabels: string[];
   pinTypes: string[];
-  defaultPowerRail: PowerRail;
+  pinPowerRails: string[];
+  pinMosfetRequired: boolean[];
   defaultPinMode: PinMode;
   pwmRequired: boolean;
   mobiFlightTemplate: unknown | null;

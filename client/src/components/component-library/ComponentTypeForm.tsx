@@ -45,35 +45,36 @@ export function ComponentTypeForm({
   const [defaultPinCount, setDefaultPinCount] = useState(1);
   const [pinLabels, setPinLabels] = useState<string[]>([]);
   const [pinTypes, setPinTypes] = useState<string[]>([]);
-  const [defaultPowerRail, setDefaultPowerRail] = useState('FIVE_V');
+  const [pinPowerRails, setPinPowerRails] = useState<string[]>([]);
+  const [pinMosfetRequired, setPinMosfetRequired] = useState<boolean[]>([]);
   const [defaultPinMode, setDefaultPinMode] = useState('INPUT');
   const [pwmRequired, setPwmRequired] = useState(false);
-  const [requiresMosfet, setRequiresMosfet] = useState(false);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
     if (open) {
       if (componentType) {
+        const count = componentType.defaultPinCount;
         setName(componentType.name);
         setDescription(componentType.description ?? '');
-        setDefaultPinCount(componentType.defaultPinCount);
-        setPinLabels(componentType.pinLabels ?? []);
-        setPinTypes(componentType.pinTypes ?? []);
-        setDefaultPowerRail(componentType.defaultPowerRail);
+        setDefaultPinCount(count);
+        setPinLabels(Array.from({ length: count }, (_, i) => (componentType.pinLabels ?? [])[i] ?? ''));
+        setPinTypes(Array.from({ length: count }, (_, i) => (componentType.pinTypes ?? [])[i] ?? 'ANY'));
+        setPinPowerRails(Array.from({ length: count }, (_, i) => (componentType.pinPowerRails ?? [])[i] ?? 'NONE'));
+        setPinMosfetRequired(Array.from({ length: count }, (_, i) => (componentType.pinMosfetRequired ?? [])[i] ?? false));
         setDefaultPinMode(componentType.defaultPinMode);
         setPwmRequired(componentType.pwmRequired);
-        setRequiresMosfet(componentType.requiresMosfet);
         setNotes(componentType.notes ?? '');
       } else {
         setName('');
         setDescription('');
         setDefaultPinCount(1);
-        setPinLabels([]);
-        setPinTypes([]);
-        setDefaultPowerRail('FIVE_V');
+        setPinLabels(['']);
+        setPinTypes(['ANY']);
+        setPinPowerRails(['NONE']);
+        setPinMosfetRequired([false]);
         setDefaultPinMode('INPUT');
         setPwmRequired(false);
-        setRequiresMosfet(false);
         setNotes('');
       }
     }
@@ -83,6 +84,8 @@ export function ComponentTypeForm({
     setDefaultPinCount(count);
     setPinLabels((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? ''));
     setPinTypes((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? 'ANY'));
+    setPinPowerRails((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? 'NONE'));
+    setPinMosfetRequired((prev) => Array.from({ length: count }, (_, i) => prev[i] ?? false));
   }
 
   function handlePinLabelChange(index: number, value: string) {
@@ -102,10 +105,10 @@ export function ComponentTypeForm({
       defaultPinCount,
       pinLabels: pinLabels.slice(0, defaultPinCount).map((l) => l.trim()),
       pinTypes: pinTypes.slice(0, defaultPinCount),
-      defaultPowerRail,
+      pinPowerRails: pinPowerRails.slice(0, defaultPinCount),
+      pinMosfetRequired: pinMosfetRequired.slice(0, defaultPinCount),
       defaultPinMode,
       pwmRequired,
-      requiresMosfet,
       notes: notes.trim() || null,
     };
 
@@ -129,7 +132,7 @@ export function ComponentTypeForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? 'Edit Component Type' : 'New Component Type'}
@@ -185,13 +188,13 @@ export function ComponentTypeForm({
             <div className="grid gap-2">
               <Label>Pin Configuration</Label>
               <p className="text-xs text-muted-foreground">
-                Label each pin and set its type (Digital, Analog, or Either).
+                Configure each pin's label, type, power rail, and MOSFET requirement.
               </p>
               <div className="grid gap-1.5">
                 {Array.from({ length: defaultPinCount }, (_, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground w-12 shrink-0 tabular-nums">
-                      Pin {i + 1}
+                    <span className="text-xs text-muted-foreground w-8 shrink-0 tabular-nums">
+                      {i + 1}
                     </span>
                     <Input
                       value={pinLabels[i] ?? ''}
@@ -203,36 +206,49 @@ export function ComponentTypeForm({
                       value={pinTypes[i] ?? 'ANY'}
                       onValueChange={(v) => handlePinTypeChange(i, v)}
                     >
-                      <SelectTrigger className="h-8 w-[110px] text-sm shrink-0">
+                      <SelectTrigger className="h-8 w-[72px] text-sm shrink-0">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DIGITAL">Digital</SelectItem>
-                        <SelectItem value="ANALOG">Analog</SelectItem>
-                        <SelectItem value="ANY">Either</SelectItem>
+                        <SelectItem value="DIGITAL">Dig</SelectItem>
+                        <SelectItem value="ANALOG">Ana</SelectItem>
+                        <SelectItem value="ANY">Any</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Select
+                      value={pinPowerRails[i] ?? 'NONE'}
+                      onValueChange={(v) =>
+                        setPinPowerRails((prev) => prev.map((r, j) => (j === i ? v : r)))
+                      }
+                    >
+                      <SelectTrigger className="h-8 w-[80px] text-sm shrink-0">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FIVE_V">5V</SelectItem>
+                        <SelectItem value="NINE_V">9V</SelectItem>
+                        <SelectItem value="TWENTY_SEVEN_V">27V</SelectItem>
+                        <SelectItem value="NONE">None</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={pinMosfetRequired[i] ?? false}
+                        onChange={(e) =>
+                          setPinMosfetRequired((prev) =>
+                            prev.map((m, j) => (j === i ? e.target.checked : m)),
+                          )
+                        }
+                        className="size-3.5 rounded border-input accent-primary"
+                      />
+                      MOSFET
+                    </label>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Default Power Rail */}
-          <div className="grid gap-2">
-            <Label htmlFor="ct-power-rail">Default Power Rail</Label>
-            <Select value={defaultPowerRail} onValueChange={setDefaultPowerRail}>
-              <SelectTrigger id="ct-power-rail" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="FIVE_V">5V</SelectItem>
-                <SelectItem value="NINE_V">9V</SelectItem>
-                <SelectItem value="TWENTY_SEVEN_V">27V</SelectItem>
-                <SelectItem value="NONE">None</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Default Pin Mode */}
           <div className="grid gap-2">
@@ -259,18 +275,6 @@ export function ComponentTypeForm({
               className="size-4 rounded border-input accent-primary"
             />
             <Label htmlFor="ct-pwm">PWM Required</Label>
-          </div>
-
-          {/* Requires MOSFET */}
-          <div className="flex items-center gap-2">
-            <input
-              id="ct-mosfet"
-              type="checkbox"
-              checked={requiresMosfet}
-              onChange={(e) => setRequiresMosfet(e.target.checked)}
-              className="size-4 rounded border-input accent-primary"
-            />
-            <Label htmlFor="ct-mosfet">Requires MOSFET</Label>
           </div>
 
           {/* Notes */}

@@ -165,3 +165,99 @@
 .nav-link[data-active='true']::before {
   height: 60%;
 }
+
+/* Nav link hover bar */
+.nav-link:not([data-active='true']):hover::before {
+  height: 30%;
+  background: oklch(0.50 0.05 75);
+}
+
+/* ═══ UI Polish ═══ */
+
+/* Text selection */
+.dark ::selection {
+  background: oklch(0.78 0.12 75 / 0.25);
+}
+
+/* Initial page entrance */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+main {
+  animation: page-enter 0.4s ease-out both;
+}
+
+/* Card hover */
+[data-slot="card"] {
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark [data-slot="card"]:hover {
+  border-color: oklch(0.30 0.015 260);
+}
+
+/* Primary button glow */
+.dark [data-slot="button"][data-variant="default"]:not(:disabled):hover {
+  box-shadow: 0 0 20px oklch(0.78 0.12 75 / 0.15), 0 1px 3px oklch(0 0 0 / 0.3);
+}
+
+/* Destructive button glow */
+.dark [data-slot="button"][data-variant="destructive"]:not(:disabled):hover {
+  box-shadow: 0 0 16px oklch(0.65 0.2 25 / 0.2), 0 1px 3px oklch(0 0 0 / 0.3);
+}
+
+/* Table head refinement */
+.dark [data-slot="table-head"] {
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: oklch(0.50 0.015 260);
+}
+
+/* Subtle ambient gradient on main content */
+.dark main {
+  background:
+    radial-gradient(ellipse at 0% 0%, oklch(0.16 0.015 260) 0%, transparent 50%),
+    radial-gradient(ellipse at 100% 100%, oklch(0.14 0.01 280) 0%, transparent 40%),
+    oklch(0.13 0.005 260);
+}
+
+/* Sidebar gradient */
+.dark .sidebar-nav {
+  background: linear-gradient(180deg, oklch(0.12 0.008 260) 0%, oklch(0.095 0.004 260) 100%);
+}
+
+/* Nav group label */
+.nav-group-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: oklch(0.40 0.01 260);
+  padding: 0 0.75rem;
+  margin-top: 0.625rem;
+  margin-bottom: 0.125rem;
+}
+
+/* Dashed border empty states — pulsing dash pattern */
+.dark .border-dashed {
+  border-color: oklch(0.28 0.012 260);
+}
+
+/* Badge subtle shadow */
+.dark [data-slot="badge"] {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* Tooltip polish */
+.dark [data-slot="tooltip-content"] {
+  backdrop-filter: blur(8px);
+}
+
+/* Page heading — slight gold tint on h1 */
+.dark h1 {
+  color: oklch(0.95 0.015 75);
+}
+

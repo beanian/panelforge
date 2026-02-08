@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Search, Plus, X, Filter, Cpu, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -55,39 +55,13 @@ import {
 import {
   usePinAssignments,
   useUpdatePinAssignment,
-  useBulkUpdatePinAssignments,
   type PinAssignment,
 } from '@/hooks/use-pin-assignments';
+import { useDeleteComponentInstance } from '@/hooks/use-component-instances';
 import { usePanelSections } from '@/hooks/use-panel-sections';
 import { useDebounce } from '@/hooks/use-debounce';
 
-import { POWER_RAIL_COLORS, POWER_RAIL_LABELS } from '@/lib/constants';
-
-// --- Wiring status config ---
-
-const WIRING_STATUS_OPTIONS = [
-  'UNASSIGNED',
-  'PLANNED',
-  'WIRED',
-  'TESTED',
-  'COMPLETE',
-] as const;
-
-const WIRING_STATUS_LABELS: Record<string, string> = {
-  UNASSIGNED: 'Unassigned',
-  PLANNED: 'Planned',
-  WIRED: 'Wired',
-  TESTED: 'Tested',
-  COMPLETE: 'Complete',
-};
-
-const WIRING_STATUS_COLORS: Record<string, string> = {
-  UNASSIGNED: 'bg-gray-400 text-white',
-  PLANNED: 'bg-slate-500 text-white',
-  WIRED: 'bg-blue-500 text-white',
-  TESTED: 'bg-amber-500 text-white',
-  COMPLETE: 'bg-green-500 text-white',
-};
+import { POWER_RAIL_LABELS } from '@/lib/constants';
 
 const POWER_RAIL_BADGE_COLORS: Record<string, string> = {
   FIVE_V: 'bg-green-500 text-white',
@@ -280,6 +254,10 @@ function RenameBoardDialog({
 }) {
   const [name, setName] = useState(currentName);
 
+  useEffect(() => {
+    if (open) setName(currentName);
+  }, [open, currentName]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -373,7 +351,7 @@ function BoardActionsMenu({
   boardName: string;
   boardType: string;
   onUpdate: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
+  onDelete: (id: string, onDone: () => void) => void;
   updatePending: boolean;
   deletePending: boolean;
 }) {
@@ -423,8 +401,7 @@ function BoardActionsMenu({
         onOpenChange={setDeleteOpen}
         boardName={boardName}
         onDelete={() => {
-          onDelete(boardId);
-          setDeleteOpen(false);
+          onDelete(boardId, () => setDeleteOpen(false));
         }}
         isPending={deletePending}
       />
@@ -460,11 +437,12 @@ export default function PinManagerPage() {
   );
 
   const handleDeleteBoard = useCallback(
-    (id: string) => {
+    (id: string, onDone?: () => void) => {
       deleteBoard.mutate(id, {
         onSuccess: () => {
           toast.success('Board deleted');
           if (selectedBoardId === id) setSelectedBoardId(undefined);
+          onDone?.();
         },
         onError: (err) => toast.error(`Delete failed: ${err.message}`),
       });
@@ -486,9 +464,12 @@ export default function PinManagerPage() {
   );
 
   const handleDeleteMosfetBoard = useCallback(
-    (id: string) => {
+    (id: string, onDone?: () => void) => {
       deleteMosfetBoard.mutate(id, {
-        onSuccess: () => toast.success('MOSFET board deleted'),
+        onSuccess: () => {
+          toast.success('MOSFET board deleted');
+          onDone?.();
+        },
         onError: (err) => toast.error(`Delete failed: ${err.message}`),
       });
     },
@@ -506,21 +487,18 @@ export default function PinManagerPage() {
   const debouncedSearch = useDebounce(searchInput, 300);
   const [panelSectionFilter, setPanelSectionFilter] = useState<string>('');
   const [powerRailFilter, setPowerRailFilter] = useState<string>('');
-  const [wiringStatusFilter, setWiringStatusFilter] = useState<string>('');
   const [assignedFilter, setAssignedFilter] = useState<string>('');
 
   const hasFilters =
     debouncedSearch ||
     (panelSectionFilter && panelSectionFilter !== 'all') ||
     (powerRailFilter && powerRailFilter !== 'all') ||
-    (wiringStatusFilter && wiringStatusFilter !== 'all') ||
     (assignedFilter && assignedFilter !== 'all');
 
   const clearFilters = () => {
     setSearchInput('');
     setPanelSectionFilter('');
     setPowerRailFilter('');
-    setWiringStatusFilter('');
     setAssignedFilter('');
   };
 
@@ -530,14 +508,34 @@ export default function PinManagerPage() {
     boardId: selectedBoard?.id,
     panelSectionId: panelSectionFilter && panelSectionFilter !== 'all' ? panelSectionFilter : undefined,
     powerRail: powerRailFilter && powerRailFilter !== 'all' ? powerRailFilter : undefined,
-    wiringStatus: wiringStatusFilter && wiringStatusFilter !== 'all' ? wiringStatusFilter : undefined,
     assigned: assignedFilter && assignedFilter !== 'all' ? assignedFilter : undefined,
     search: debouncedSearch || undefined,
   });
 
   // Mutations
   const updatePin = useUpdatePinAssignment();
-  const bulkUpdate = useBulkUpdatePinAssignments();
+  const deleteComponent = useDeleteComponentInstance();
+
+  // Delete component confirmation
+  const [deleteTarget, setDeleteTarget] = useState<{
+    componentId: string;
+    componentName: string;
+    pinCount: number;
+  } | null>(null);
+
+  const handleDeleteComponent = useCallback(() => {
+    if (!deleteTarget) return;
+    deleteComponent.mutate(deleteTarget.componentId, {
+      onSuccess: () => {
+        toast.success(`Deleted "${deleteTarget.componentName}" and its pin assignments`);
+        setDeleteTarget(null);
+        setSelectedIds(new Set());
+      },
+      onError: (err) => {
+        toast.error(`Delete failed: ${err.message}`);
+      },
+    });
+  }, [deleteTarget, deleteComponent]);
 
   // Selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -576,22 +574,15 @@ export default function PinManagerPage() {
     [updatePin]
   );
 
-  // Bulk status update
-  const handleBulkStatus = useCallback(
-    (status: string) => {
-      const ids = Array.from(selectedIds);
-      bulkUpdate.mutate(
-        { ids, data: { wiringStatus: status } },
-        {
-          onSuccess: () => {
-            toast.success(`Updated ${ids.length} pin(s) to ${WIRING_STATUS_LABELS[status]}`);
-            setSelectedIds(new Set());
-          },
-          onError: (err) => toast.error(`Bulk update failed: ${err.message}`),
-        }
-      );
+  // Request delete for a component (from a pin row)
+  const handleRequestDeleteComponent = useCallback(
+    (componentId: string, componentName: string) => {
+      const pinCount = pins.filter(
+        (p) => p.componentInstance?.id === componentId
+      ).length;
+      setDeleteTarget({ componentId, componentName, pinCount });
     },
-    [selectedIds, bulkUpdate]
+    [pins]
   );
 
   // Pin availability for selected board
@@ -754,23 +745,6 @@ export default function PinManagerPage() {
               </SelectContent>
             </Select>
 
-            <Select
-              value={wiringStatusFilter}
-              onValueChange={setWiringStatusFilter}
-            >
-              <SelectTrigger size="sm" className="w-[150px]">
-                <SelectValue placeholder="Wiring Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {WIRING_STATUS_OPTIONS.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {WIRING_STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Select value={assignedFilter} onValueChange={setAssignedFilter}>
               <SelectTrigger size="sm" className="w-[140px]">
                 <SelectValue placeholder="Assignment" />
@@ -799,40 +773,6 @@ export default function PinManagerPage() {
               {pins.length} pin{pins.length !== 1 ? 's' : ''}
             </div>
           </div>
-
-          {/* Bulk Actions */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 rounded-lg border bg-accent/50 px-4 py-2">
-              <span className="text-sm font-medium">
-                {selectedIds.size} selected
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" variant="outline">
-                    Update Status
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {WIRING_STATUS_OPTIONS.map((status) => (
-                    <DropdownMenuItem
-                      key={status}
-                      onClick={() => handleBulkStatus(status)}
-                    >
-                      {WIRING_STATUS_LABELS[status]}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={deselectAll}
-                className="text-muted-foreground"
-              >
-                Deselect All
-              </Button>
-            </div>
-          )}
 
           {/* Pin Table */}
           {pinsLoading ? (
@@ -884,9 +824,9 @@ export default function PinManagerPage() {
                     <TableHead>Component</TableHead>
                     <TableHead>Power Rail</TableHead>
                     <TableHead>Pin Mode</TableHead>
-                    <TableHead>Wiring Status</TableHead>
                     <TableHead>MobiFlight Var</TableHead>
                     <TableHead>Notes</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -897,6 +837,7 @@ export default function PinManagerPage() {
                       selected={selectedIds.has(pin.id)}
                       onToggle={toggleSelect}
                       onSave={handleInlineSave}
+                      onDeleteComponent={handleRequestDeleteComponent}
                     />
                   ))}
                 </TableBody>
@@ -905,6 +846,35 @@ export default function PinManagerPage() {
           )}
         </>
       )}
+
+      {/* Delete component confirmation */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleteTarget?.componentName}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this component and remove{' '}
+              {deleteTarget?.pinCount === 1
+                ? 'its pin assignment'
+                : `all ${deleteTarget?.pinCount} of its pin assignments`}{' '}
+              from this board. It will also be removed from the panel map if placed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteComponent}
+              disabled={deleteComponent.isPending}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              {deleteComponent.isPending ? 'Deleting...' : 'Delete Component'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -916,11 +886,13 @@ function PinRow({
   selected,
   onToggle,
   onSave,
+  onDeleteComponent,
 }: {
   pin: PinAssignment;
   selected: boolean;
   onToggle: (id: string) => void;
   onSave: (id: string, field: string, value: string) => void;
+  onDeleteComponent: (componentId: string, componentName: string) => void;
 }) {
   return (
     <TableRow data-state={selected ? 'selected' : undefined}>
@@ -943,11 +915,8 @@ function PinRow({
           <span className="text-muted-foreground">--</span>
         )}
       </TableCell>
-      <TableCell>
-        <InlineEdit
-          value={pin.description ?? ''}
-          onSave={(val) => onSave(pin.id, 'description', val)}
-        />
+      <TableCell className="text-sm">
+        {pin.description || <span className="text-muted-foreground">--</span>}
       </TableCell>
       <TableCell className="text-sm">
         {pin.componentInstance ? (
@@ -970,13 +939,6 @@ function PinRow({
       </TableCell>
       <TableCell className="text-sm font-mono">{pin.pinMode}</TableCell>
       <TableCell>
-        <Badge
-          className={`text-xs ${WIRING_STATUS_COLORS[pin.wiringStatus] ?? 'bg-gray-400 text-white'}`}
-        >
-          {WIRING_STATUS_LABELS[pin.wiringStatus] ?? pin.wiringStatus}
-        </Badge>
-      </TableCell>
-      <TableCell>
         <InlineEdit
           value={pin.mobiFlightMapping?.variableName ?? ''}
           onSave={(val) => onSave(pin.id, 'mobiFlightVariable', val)}
@@ -988,6 +950,22 @@ function PinRow({
           value={pin.notes ?? ''}
           onSave={(val) => onSave(pin.id, 'notes', val)}
         />
+      </TableCell>
+      <TableCell>
+        {pin.componentInstance && (
+          <button
+            onClick={() =>
+              onDeleteComponent(
+                pin.componentInstance!.id,
+                pin.componentInstance!.name
+              )
+            }
+            className="inline-flex items-center justify-center size-7 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+            title={`Delete component "${pin.componentInstance.name}"`}
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        )}
       </TableCell>
     </TableRow>
   );

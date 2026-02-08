@@ -60,6 +60,8 @@ export default function PanelMapPage() {
       queryClient.invalidateQueries({ queryKey: ['component-instances', 'map-data'] });
       queryClient.invalidateQueries({ queryKey: ['component-instances'] });
       queryClient.invalidateQueries({ queryKey: ['panel-sections'] });
+      queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['boards'] });
     },
   });
 
@@ -162,8 +164,8 @@ export default function PanelMapPage() {
           componentTypeId: source.componentType.id,
           panelSectionId: source.panelSection.id,
           powerRail: source.powerRail ?? 'NONE',
-          mapWidth: source.mapWidth ?? 3,
-          mapHeight: source.mapHeight ?? 3,
+          mapWidth: source.mapWidth || 3,
+          mapHeight: source.mapHeight || 3,
         });
         setDrawingBox(true);
         toast.info('Click to place the copied component');

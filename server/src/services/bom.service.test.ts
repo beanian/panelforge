@@ -119,11 +119,12 @@ describe('bomService.calculate', () => {
     expect(result.newBoardsNeeded).toBe(1);
   });
 
-  it('tracks MOSFET channels for 27V components', async () => {
+  it('tracks MOSFET channels from pinMosfetRequired', async () => {
     const ct = makeComponentType({
       defaultPinCount: 2,
       pinTypes: ['DIGITAL'],
-      defaultPowerRail: 'TWENTY_SEVEN_V',
+      pinPowerRails: ['TWENTY_SEVEN_V', 'TWENTY_SEVEN_V'],
+      pinMosfetRequired: [true, true],
     });
     const ci = makeComponentInstance({
       componentType: ct,

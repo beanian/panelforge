@@ -1,4 +1,4 @@
-import { PrismaClient, BuildStatus, PowerRail, PinMode } from '@prisma/client';
+import { PrismaClient, BuildStatus, PinMode } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -128,8 +128,11 @@ async function main() {
       defaultPinCount: 2,
       pinLabels: ['Step', 'Direction'],
       pinTypes: ['DIGITAL', 'DIGITAL'],
-      defaultPowerRail: PowerRail.NINE_V,
+      pinPowerRails: ['NINE_V', 'NINE_V'],
+      pinMosfetRequired: [false, false],
       defaultPinMode: PinMode.OUTPUT,
+      typicalCurrentMa: 20,
+      standbyCurrentMa: 0,
     },
     {
       name: 'Annunciator',
@@ -137,9 +140,11 @@ async function main() {
       defaultPinCount: 1,
       pinLabels: ['LED'],
       pinTypes: ['DIGITAL'],
-      defaultPowerRail: PowerRail.TWENTY_SEVEN_V,
+      pinPowerRails: ['TWENTY_SEVEN_V'],
+      pinMosfetRequired: [true],
       defaultPinMode: PinMode.OUTPUT,
-      requiresMosfet: true,
+      typicalCurrentMa: 80,
+      standbyCurrentMa: 0,
     },
     {
       name: 'Toggle Switch',
@@ -147,8 +152,11 @@ async function main() {
       defaultPinCount: 1,
       pinLabels: ['Signal'],
       pinTypes: ['DIGITAL'],
-      defaultPowerRail: PowerRail.NONE,
+      pinPowerRails: ['NONE'],
+      pinMosfetRequired: [false],
       defaultPinMode: PinMode.INPUT,
+      typicalCurrentMa: 0,
+      standbyCurrentMa: 0,
     },
     {
       name: 'Two-Position Switch',
@@ -156,8 +164,11 @@ async function main() {
       defaultPinCount: 2,
       pinLabels: ['Position 1', 'Position 2'],
       pinTypes: ['DIGITAL', 'DIGITAL'],
-      defaultPowerRail: PowerRail.NONE,
+      pinPowerRails: ['NONE', 'NONE'],
+      pinMosfetRequired: [false, false],
       defaultPinMode: PinMode.INPUT,
+      typicalCurrentMa: 0,
+      standbyCurrentMa: 0,
     },
     {
       name: 'Pushbutton',
@@ -165,8 +176,11 @@ async function main() {
       defaultPinCount: 1,
       pinLabels: ['Signal'],
       pinTypes: ['DIGITAL'],
-      defaultPowerRail: PowerRail.NONE,
+      pinPowerRails: ['NONE'],
+      pinMosfetRequired: [false],
       defaultPinMode: PinMode.INPUT,
+      typicalCurrentMa: 0,
+      standbyCurrentMa: 0,
     },
     {
       name: 'Illuminated Pushbutton',
@@ -174,8 +188,11 @@ async function main() {
       defaultPinCount: 2,
       pinLabels: ['Button', 'LED'],
       pinTypes: ['DIGITAL', 'DIGITAL'],
-      defaultPowerRail: PowerRail.FIVE_V,
+      pinPowerRails: ['FIVE_V', 'TWENTY_SEVEN_V'],
+      pinMosfetRequired: [false, true],
       defaultPinMode: PinMode.INPUT,
+      typicalCurrentMa: 25,
+      standbyCurrentMa: 25,
     },
     {
       name: 'Potentiometer',
@@ -183,8 +200,11 @@ async function main() {
       defaultPinCount: 1,
       pinLabels: ['Wiper'],
       pinTypes: ['ANALOG'],
-      defaultPowerRail: PowerRail.NONE,
+      pinPowerRails: ['NONE'],
+      pinMosfetRequired: [false],
       defaultPinMode: PinMode.INPUT,
+      typicalCurrentMa: 0,
+      standbyCurrentMa: 0,
     },
     {
       name: 'Rotary Encoder',
@@ -192,8 +212,11 @@ async function main() {
       defaultPinCount: 2,
       pinLabels: ['Channel A', 'Channel B'],
       pinTypes: ['DIGITAL', 'DIGITAL'],
-      defaultPowerRail: PowerRail.NONE,
+      pinPowerRails: ['NONE', 'NONE'],
+      pinMosfetRequired: [false, false],
       defaultPinMode: PinMode.INPUT,
+      typicalCurrentMa: 0,
+      standbyCurrentMa: 0,
     },
   ];
 
@@ -222,6 +245,18 @@ async function main() {
   console.log('  ✓ Board Alpha');
 
   // MOSFET boards are created via the UI (8 channels each)
+
+  // ─── PSU Config ───────────────────────────────────────────
+  await prisma.psuConfig.upsert({
+    where: { id: 'singleton' },
+    update: {},
+    create: {
+      capacityWatts: 350,
+      converterEfficiency: 0.87,
+      name: 'Main PSU',
+    },
+  });
+  console.log('  ✓ PSU Config');
 
   console.log('\nSeed complete!');
 }

@@ -1,60 +1,52 @@
 import { prisma } from '../lib/prisma';
 
-const RAIL_LABELS: Record<string, string> = {
-  FIVE_V: '5V',
-  NINE_V: '9V',
-  TWENTY_SEVEN_V: '27V',
-  NONE: 'None / Unassigned',
-};
-
 export const powerBudgetService = {
   async getPowerBudget() {
-    // Fetch all pin assignments with their component instance and section info
-    const pinAssignments = await prisma.pinAssignment.findMany({
-      where: { componentInstanceId: { not: null } },
+    // Fetch all component instances with type + section info
+    const instances = await prisma.componentInstance.findMany({
       select: {
+        id: true,
+        name: true,
         powerRail: true,
-        componentInstance: {
+        panelSectionId: true,
+        panelSection: { select: { name: true } },
+        componentType: {
           select: {
-            panelSectionId: true,
-            panelSection: { select: { name: true } },
+            name: true,
+            pinPowerRails: true,
+            typicalCurrentMa: true,
+            standbyCurrentMa: true,
           },
         },
       },
     });
 
-    // Build rail breakdown
-    const railMap: Record<string, { total: number; bySection: Record<string, { sectionId: string; sectionName: string; count: number }> }> = {
-      FIVE_V: { total: 0, bySection: {} },
-      NINE_V: { total: 0, bySection: {} },
-      TWENTY_SEVEN_V: { total: 0, bySection: {} },
-      NONE: { total: 0, bySection: {} },
-    };
+    // Map instances to power budget components
+    const components = instances.map((inst) => {
+      // Derive effective power rail: instance override, or first non-NONE pin rail from type
+      const typePrimaryRail = inst.componentType.pinPowerRails.find(
+        (r) => r !== 'NONE',
+      ) ?? 'NONE';
+      const effectiveRail = inst.powerRail ?? typePrimaryRail;
 
-    for (const pin of pinAssignments) {
-      const rail = pin.powerRail;
-      const sectionId = pin.componentInstance?.panelSectionId;
-      const sectionName = pin.componentInstance?.panelSection?.name;
+      return {
+        instanceId: inst.id,
+        instanceName: inst.name,
+        componentTypeName: inst.componentType.name,
+        panelSectionId: inst.panelSectionId,
+        panelSectionName: inst.panelSection.name,
+        powerRail: effectiveRail,
+        typicalCurrentMa: inst.componentType.typicalCurrentMa,
+        standbyCurrentMa: inst.componentType.standbyCurrentMa,
+      };
+    });
 
-      if (!sectionId || !sectionName) continue;
-
-      railMap[rail].total += 1;
-      if (!railMap[rail].bySection[sectionId]) {
-        railMap[rail].bySection[sectionId] = {
-          sectionId,
-          sectionName,
-          count: 0,
-        };
-      }
-      railMap[rail].bySection[sectionId].count += 1;
-    }
-
-    const rails = Object.entries(railMap).map(([rail, data]) => ({
-      rail,
-      label: RAIL_LABELS[rail] || rail,
-      totalConnections: data.total,
-      bySection: Object.values(data.bySection),
-    }));
+    // Infrastructure: count boards and MOSFET boards
+    const [boardCount, mosfetBoardCount] = await Promise.all([
+      prisma.board.count(),
+      prisma.mosfetBoard.count(),
+    ]);
+    const estimatedBoardCurrentMa = boardCount * 50 + mosfetBoardCount * 30;
 
     // Fetch MOSFET boards with channel and pin assignment details
     const mosfetBoards = await prisma.mosfetBoard.findMany({
@@ -78,7 +70,6 @@ export const powerBudgetService = {
 
     const mosfetData = mosfetBoards.map((board) => {
       const usedChannels = board.channels.filter((ch) => ch.pinAssignment !== null).length;
-
       return {
         id: board.id,
         name: board.name,
@@ -97,9 +88,63 @@ export const powerBudgetService = {
       };
     });
 
+    // Fetch PSU config
+    const psuConfig = await this.getPsuConfig();
+
     return {
-      rails,
+      psuConfig,
+      components,
+      infrastructure: {
+        boardCount,
+        mosfetBoardCount,
+        estimatedBoardCurrentMa,
+      },
       mosfetBoards: mosfetData,
+    };
+  },
+
+  async getPsuConfig() {
+    let config = await prisma.psuConfig.findUnique({
+      where: { id: 'singleton' },
+    });
+    if (!config) {
+      config = await prisma.psuConfig.create({
+        data: {
+          capacityWatts: 350,
+          converterEfficiency: 0.87,
+          name: 'Main PSU',
+        },
+      });
+    }
+    return {
+      name: config.name,
+      capacityWatts: config.capacityWatts,
+      converterEfficiency: config.converterEfficiency,
+      notes: config.notes,
+    };
+  },
+
+  async updatePsuConfig(data: {
+    name?: string;
+    capacityWatts?: number;
+    converterEfficiency?: number;
+    notes?: string | null;
+  }) {
+    const config = await prisma.psuConfig.upsert({
+      where: { id: 'singleton' },
+      update: data,
+      create: {
+        ...data,
+        capacityWatts: data.capacityWatts ?? 350,
+        converterEfficiency: data.converterEfficiency ?? 0.87,
+        name: data.name ?? 'Main PSU',
+      },
+    });
+    return {
+      name: config.name,
+      capacityWatts: config.capacityWatts,
+      converterEfficiency: config.converterEfficiency,
+      notes: config.notes,
     };
   },
 };

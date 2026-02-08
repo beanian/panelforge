@@ -18,10 +18,12 @@ export const createComponentTypeSchema = z.object({
   defaultPinCount: z.number().int().min(1).max(20),
   pinLabels: z.array(z.string().max(50)).default([]),
   pinTypes: z.array(z.enum(['DIGITAL', 'ANALOG', 'ANY'])).default([]),
-  defaultPowerRail: z.enum(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE']).default('NONE'),
+  pinPowerRails: z.array(z.enum(['FIVE_V', 'NINE_V', 'TWENTY_SEVEN_V', 'NONE'])).default([]),
+  pinMosfetRequired: z.array(z.boolean()).default([]),
   defaultPinMode: z.enum(['INPUT', 'OUTPUT', 'PWM']).default('INPUT'),
   pwmRequired: z.boolean().default(false),
-  requiresMosfet: z.boolean().default(false),
+  typicalCurrentMa: z.number().int().min(0).default(0),
+  standbyCurrentMa: z.number().int().min(0).default(0),
   mobiFlightTemplate: z.unknown().optional(),
   notes: z.string().nullable().optional(),
 });
@@ -162,6 +164,15 @@ export const createJournalEntrySchema = z.object({
 });
 
 export const updateJournalEntrySchema = createJournalEntrySchema.partial();
+
+// ─── PSU Config ────────────────────────────────────────
+
+export const updatePsuConfigSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  capacityWatts: z.number().positive().max(5000).optional(),
+  converterEfficiency: z.number().min(0.5).max(1.0).optional(),
+  notes: z.string().nullable().optional(),
+});
 
 // ─── Query Filters ──────────────────────────────────────
 

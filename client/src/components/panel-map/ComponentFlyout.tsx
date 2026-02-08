@@ -48,7 +48,7 @@ interface ComponentDetail {
     name: string;
     description: string | null;
     defaultPinCount: number;
-    defaultPowerRail: string;
+    pinPowerRails: string[];
     defaultPinMode: string;
   };
   panelSection: {

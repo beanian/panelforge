@@ -23,18 +23,37 @@ import JournalPage from '@/pages/JournalPage';
 import ReferencePage from '@/pages/ReferencePage';
 import SectionCalibrationPage from '@/pages/SectionCalibrationPage';
 
-const NAV_ITEMS = [
-  { to: '/', label: 'Panel Map', icon: Map },
-  { to: '/pins', label: 'Pin Manager', icon: Cpu },
-  { to: '/components', label: 'Components', icon: Library },
-  { to: '/power', label: 'Power Budget', icon: Zap },
-  { to: '/wiring', label: 'Wiring', icon: Cable },
-  { to: '/mobiflight', label: 'MobiFlight', icon: Radio },
-  { to: '/bom', label: 'BOM', icon: ClipboardList },
-  { to: '/journal', label: 'Journal', icon: BookOpen },
-  { to: '/reference', label: 'Reference', icon: FileText },
-  { to: '/calibrate-sections', label: 'Calibrate', icon: Crosshair },
-] as const;
+const NAV_GROUPS = [
+  {
+    items: [
+      { to: '/', label: 'Panel Map', icon: Map },
+    ],
+  },
+  {
+    label: 'Build',
+    items: [
+      { to: '/components', label: 'Components', icon: Library },
+      { to: '/pins', label: 'Pin Manager', icon: Cpu },
+      { to: '/calibrate-sections', label: 'Calibrate', icon: Crosshair },
+    ],
+  },
+  {
+    label: 'Analysis',
+    items: [
+      { to: '/power', label: 'Power Budget', icon: Zap },
+      { to: '/wiring', label: 'Wiring', icon: Cable },
+      { to: '/bom', label: 'BOM', icon: ClipboardList },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { to: '/mobiflight', label: 'MobiFlight', icon: Radio },
+      { to: '/journal', label: 'Journal', icon: BookOpen },
+      { to: '/reference', label: 'Reference', icon: FileText },
+    ],
+  },
+];
 
 function NavItem({
   to,
@@ -72,11 +91,11 @@ export default function App() {
     <>
       <div className="flex h-screen">
         {/* Sidebar */}
-        <nav className="w-56 border-r border-border/50 bg-sidebar flex flex-col">
+        <nav className="w-56 border-r border-border/50 sidebar-nav flex flex-col">
           {/* Brand */}
           <div className="px-4 py-5 border-b border-border/50">
             <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-lg bg-primary/15 flex items-center justify-center">
+              <div className="size-8 rounded-lg bg-primary/10 ring-1 ring-primary/25 flex items-center justify-center">
                 <span className="text-primary font-bold text-sm font-mono">PF</span>
               </div>
               <div>
@@ -87,9 +106,14 @@ export default function App() {
           </div>
 
           {/* Nav links */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-0.5">
-            {NAV_ITEMS.map((item) => (
-              <NavItem key={item.to} {...item} />
+          <div className="flex-1 overflow-y-auto px-3 py-2 flex flex-col gap-0.5">
+            {NAV_GROUPS.map((group, gi) => (
+              <div key={gi}>
+                {group.label && <div className="nav-group-label">{group.label}</div>}
+                {group.items.map((item) => (
+                  <NavItem key={item.to} {...item} />
+                ))}
+              </div>
             ))}
           </div>
 

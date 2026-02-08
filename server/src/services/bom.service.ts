@@ -172,22 +172,27 @@ export const bomService = {
           typeName: ct.name,
           pinsNeeded: 0,
           pinMode: ct.defaultPinMode,
+          // TODO: This only checks the first pin's type. Components with mixed
+          // pin types (e.g. ['DIGITAL', 'ANALOG']) will be treated as all-digital.
+          // Per-pin allocation would require restructuring ComponentAllocation.
           pinType: ct.pinTypes?.[0] === 'ANALOG' ? 'ANALOG' : 'DIGITAL',
           pwmRequired: ct.pwmRequired,
-          powerRail: (instance.powerRail ?? ct.defaultPowerRail) as string,
+          powerRail: (instance.powerRail ?? ct.pinPowerRails?.[0] ?? 'NONE') as string,
           allocations: [],
         });
         continue;
       }
 
       // Determine the pin type needed (first required type, default to DIGITAL)
+      // TODO: Same per-pin limitation as above — mixed-type components not yet supported.
       const pinType = ct.pinTypes?.[0] === 'ANALOG' ? 'ANALOG' : 'DIGITAL';
       const pwmRequired = ct.pwmRequired;
-      const powerRail = (instance.powerRail ?? ct.defaultPowerRail) as string;
+      const powerRail = (instance.powerRail ?? ct.pinPowerRails?.[0] ?? 'NONE') as string;
 
-      // Check if component needs MOSFET (27V power rail)
-      if (powerRail === 'TWENTY_SEVEN_V') {
-        mosfetChannelsNeeded += pinsStillNeeded;
+      // Count MOSFET channels needed from per-pin config
+      const mosfetPinsForType = (ct.pinMosfetRequired ?? []).filter(Boolean).length;
+      if (mosfetPinsForType > 0) {
+        mosfetChannelsNeeded += mosfetPinsForType;
       }
 
       // Best-fit allocation: try existing boards first

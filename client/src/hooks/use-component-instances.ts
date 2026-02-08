@@ -35,6 +35,8 @@ export function useDeleteComponentInstance() {
       queryClient.invalidateQueries({ queryKey: ['panel-sections'] });
       queryClient.invalidateQueries({ queryKey: ['component-instances'] });
       queryClient.invalidateQueries({ queryKey: ['component-instances', 'map-data'] });
+      queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['boards'] });
     },
   });
 }

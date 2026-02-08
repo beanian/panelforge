@@ -66,7 +66,7 @@ function ComponentTypeCard({
 }) {
   const usageCount = componentType._count?.componentInstances ?? 0;
   const canDelete = usageCount === 0;
-  const powerRailKey = componentType.defaultPowerRail;
+  const uniqueRails = [...new Set((componentType.pinPowerRails ?? []).filter((r) => r !== 'NONE'))];
 
   return (
     <Card>
@@ -90,11 +90,18 @@ function ComponentTypeCard({
             )}
           </Badge>
 
-          <Badge
-            className={`${POWER_RAIL_COLORS[powerRailKey] ?? 'bg-gray-400'} text-white border-transparent`}
-          >
-            {POWER_RAIL_LABELS[powerRailKey] ?? powerRailKey}
-          </Badge>
+          {uniqueRails.length > 0 ? uniqueRails.map((rail) => (
+            <Badge
+              key={rail}
+              className={`${POWER_RAIL_COLORS[rail] ?? 'bg-gray-400'} text-white border-transparent`}
+            >
+              {POWER_RAIL_LABELS[rail] ?? rail}
+            </Badge>
+          )) : (
+            <Badge className="bg-gray-400 text-white border-transparent">
+              No Power
+            </Badge>
+          )}
 
           <Badge variant="outline">
             {PIN_MODE_LABELS[componentType.defaultPinMode] ??
