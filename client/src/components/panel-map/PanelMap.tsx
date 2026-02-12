@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, type RefObject } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Plus, Copy, Trash2, Settings2, Activity, LayoutGrid } from 'lucide-react';
 import { type MapComponent } from '@/hooks/use-component-map-data';
 import { usePercentCoords } from '@/lib/use-percent-coords';

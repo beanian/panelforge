@@ -139,7 +139,6 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   }, [open, defaults, defaultPanelSectionId, componentTypes]);
 
   const selectedType = componentTypes?.find((ct) => ct.id === componentTypeId);
-  const selectedBoard = boards?.find((b) => b.id === boardId);
   const mosfetPinIndices = useMemo(() => {
     if (!selectedType?.pinMosfetRequired) return [];
     return selectedType.pinMosfetRequired
@@ -157,10 +156,6 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   }, [usedPins]);
 
   // Also exclude pins already selected in other rows of this wizard
-  const selectedInWizard = useMemo(() => {
-    return new Set(pins.map((p) => p.pinNumber).filter(Boolean));
-  }, [pins]);
-
   const availableDigitalPins = useMemo(() => {
     return MEGA_2560.digitalPins.filter(
       (p) => !MEGA_2560.reservedPins.includes(p) && !usedPinNumbers.has(p),

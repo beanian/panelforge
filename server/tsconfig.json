@@ -8,7 +8,7 @@
       "@panelforge/shared/*": ["../packages/shared/src/*"]
     }
   },
-  "include": ["src/**/*", "prisma/**/*"],
+  "include": ["src/**/*"],
   "references": [
     { "path": "../packages/shared" }
   ]

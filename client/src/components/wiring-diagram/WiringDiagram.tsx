@@ -16,8 +16,6 @@ const PIN_H = 36;
 const MOSFET_W = 160;
 const MOSFET_H = 36;
 const POWER_BAR_W = 100;
-const POWER_BAR_H = 36;
-
 const ROW_GAP = 12;
 const COMPONENT_GAP = 20;
 const PAD_TOP = 60;

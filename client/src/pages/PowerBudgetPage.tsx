@@ -313,7 +313,7 @@ function RailCard({
   currentMa,
   watts,
   psuDrawWatts,
-  voltage,
+  voltage: _voltage,
   components,
   scenario,
   customToggles,

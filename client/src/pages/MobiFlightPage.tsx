@@ -41,7 +41,6 @@ export default function MobiFlightPage() {
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  const selectedBoard = boards.find((b) => b.id === selectedBoardId);
   const {
     data: preview,
     isLoading: previewLoading,

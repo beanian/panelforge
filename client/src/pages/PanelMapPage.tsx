@@ -39,7 +39,7 @@ export default function PanelMapPage() {
   const [defaultSectionId, setDefaultSectionId] = useState<string | null>(null);
 
   // Zoom + Pan
-  const { scale, translateX, translateY, containerProps: panZoomContainerProps, style: panZoomStyle, setContainerRef, resetView, zoomToRect } = usePanZoom();
+  const { scale, containerProps: panZoomContainerProps, style: panZoomStyle, setContainerRef, resetView, zoomToRect } = usePanZoom();
   const outerContainerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const zoomedRectRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);

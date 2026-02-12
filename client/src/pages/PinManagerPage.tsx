@@ -559,8 +559,6 @@ export default function PinManagerPage() {
     }
   }, [allSelected, pins]);
 
-  const deselectAll = useCallback(() => setSelectedIds(new Set()), []);
-
   // Inline edit handler
   const handleInlineSave = useCallback(
     (pinId: string, field: string, value: string) => {

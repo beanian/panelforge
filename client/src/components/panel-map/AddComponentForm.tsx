@@ -18,7 +18,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { useComponentTypes, type ComponentType } from '@/hooks/use-component-types';
+import { useComponentTypes } from '@/hooks/use-component-types';
 import { useCreateComponentInstance } from '@/hooks/use-component-instances';
 
 interface AddComponentFormProps {
