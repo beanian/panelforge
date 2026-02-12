@@ -35,8 +35,10 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Container App
-        uses: azure/container-apps-deploy@v2
+        uses: azure/CLI@v2
         with:
-          containerAppName: panelforge
-          resourceGroup: panelforge-rg
-          imageToDeploy: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          inlineScript: |
+            az containerapp update \
+              --name panelforge \
+              --resource-group panelforge-rg \
+              --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
