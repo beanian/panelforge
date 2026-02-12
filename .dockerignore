@@ -1,0 +1,11 @@
+node_modules
+*/node_modules
+**/node_modules
+.git
+*.md
+.env*
+nul
+*.sql
+server/dist
+client/dist
+packages/shared/dist

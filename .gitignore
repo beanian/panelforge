@@ -30,5 +30,17 @@ npm-debug.log*
 # Docker volumes
 pgdata/
 
+# Windows artifacts
+nul
+
+# SQL backups
+*.sql
+
+# Compiled seed artifacts
+server/prisma/seed.js
+server/prisma/seed.js.map
+server/prisma/seed.d.ts
+server/prisma/seed.d.ts.map
+
 # Claude local settings
 .claude/
