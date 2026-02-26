@@ -33,8 +33,9 @@ pgdata/
 # Windows artifacts
 nul
 
-# SQL backups
+# SQL backups (but not Prisma migrations)
 *.sql
+!server/prisma/migrations/**/*.sql
 
 # Compiled seed artifacts
 server/prisma/seed.js

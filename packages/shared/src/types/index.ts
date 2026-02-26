@@ -7,3 +7,4 @@ export * from './pin-assignment';
 export * from './mosfet';
 export * from './mobiflight';
 export * from './journal';
+export * from './aircraft';

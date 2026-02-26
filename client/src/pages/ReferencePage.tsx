@@ -1,14 +1,25 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { AlertTriangle, ExternalLink, Plane, Ruler } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Plane,
+  Plus,
+  RefreshCw,
+  Ruler,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { api } from '@/lib/api';
+import { useAircraftProfile } from '@/hooks/use-aircraft';
 
 // --- Derived status from component count ---
 
@@ -203,9 +214,290 @@ function DimensionCard({
   );
 }
 
+// --- Aircraft detail panel (fetches and displays rich lineage data) ---
+
+function AircraftDetailPanel({
+  msn,
+  registration,
+}: {
+  msn: string;
+  registration: string | null;
+}) {
+  const queryClient = useQueryClient();
+  const { data: profile, isLoading, error } = useAircraftProfile(msn, registration);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 pt-3 border-t border-border/50 mt-3">
+        <div className="flex gap-2 overflow-x-auto">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-32 shrink-0 rounded" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-3 border-t border-border/50 mt-3">
+        <p className="text-sm text-destructive">Failed to load aircraft data: {error.message}</p>
+      </div>
+    );
+  }
+
+  if (!profile) return null;
+
+  const hasAnyData =
+    profile.photos.length > 0 ||
+    profile.typeName ||
+    profile.manufacturer ||
+    profile.registeredOwners ||
+    profile.registrationHistory.length > 0;
+
+  if (!hasAnyData) {
+    return (
+      <div className="pt-3 border-t border-border/50 mt-3">
+        <p className="text-sm text-muted-foreground italic">
+          No external data found for MSN {msn}
+          {!registration && ' (no registration available for API lookups)'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pt-3 border-t border-border/50 mt-3">
+      {/* Photo gallery */}
+      {profile.photos.length > 0 && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Photos
+          </h4>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {profile.photos.map((photo) => (
+              <a
+                key={photo.id}
+                href={photo.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 group"
+              >
+                <img
+                  src={photo.thumbnailUrl}
+                  alt={`Photo by ${photo.photographer}`}
+                  className="h-20 w-32 object-cover rounded border border-border/50 group-hover:border-primary transition-colors"
+                  loading="lazy"
+                />
+                <p className="text-[10px] text-muted-foreground mt-0.5 truncate w-32">
+                  {photo.photographer}
+                </p>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Aircraft info grid */}
+      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+        <span className="text-muted-foreground">MSN</span>
+        <span className="font-mono font-medium">{msn}</span>
+        {profile.currentRegistration && (
+          <>
+            <span className="text-muted-foreground">Current Reg</span>
+            <span className="font-mono font-medium">{profile.currentRegistration}</span>
+          </>
+        )}
+        {profile.typeName && (
+          <>
+            <span className="text-muted-foreground">Type</span>
+            <span className="font-medium">{profile.typeName}</span>
+          </>
+        )}
+        {profile.manufacturer && (
+          <>
+            <span className="text-muted-foreground">Manufacturer</span>
+            <span className="font-medium">{profile.manufacturer}</span>
+          </>
+        )}
+        {profile.builtDate && (
+          <>
+            <span className="text-muted-foreground">Built</span>
+            <span className="font-medium">{profile.builtDate}</span>
+          </>
+        )}
+        {profile.registeredOwners && (
+          <>
+            <span className="text-muted-foreground">Registered Owner</span>
+            <span className="font-medium">{profile.registeredOwners}</span>
+          </>
+        )}
+        {profile.airlineName && (
+          <>
+            <span className="text-muted-foreground">Airline</span>
+            <span className="font-medium">{profile.airlineName}</span>
+          </>
+        )}
+        {profile.icaoTypeCode && (
+          <>
+            <span className="text-muted-foreground">ICAO Type</span>
+            <span className="font-mono">{profile.icaoTypeCode}</span>
+          </>
+        )}
+        {profile.icaoHex && (
+          <>
+            <span className="text-muted-foreground">ICAO Hex</span>
+            <span className="font-mono">{profile.icaoHex}</span>
+          </>
+        )}
+      </div>
+
+      {/* Operator history timeline */}
+      {profile.registrationHistory.length > 0 && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Registration History
+          </h4>
+          <div className="space-y-1">
+            {profile.registrationHistory.map((entry, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className="font-mono text-xs bg-slate-800 px-1.5 py-0.5 rounded">
+                  {entry.registration}
+                </span>
+                {entry.operator && <span>{entry.operator}</span>}
+                {(entry.dateFrom || entry.dateTo) && (
+                  <span className="text-muted-foreground text-xs">
+                    {entry.dateFrom || '?'} &ndash; {entry.dateTo || 'present'}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* External links */}
+      <div className="space-y-1.5">
+        <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          External References
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {(profile.currentRegistration || registration) && (
+            <a
+              href={`https://www.planespotters.net/search?q=${profile.currentRegistration || registration}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="size-3" />
+              Planespotters
+            </a>
+          )}
+          {(profile.currentRegistration || registration) && (
+            <a
+              href={`https://www.airfleets.net/recherche/search.php?rech=${profile.currentRegistration || registration}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <ExternalLink className="size-3" />
+              Airfleets
+            </a>
+          )}
+          <a
+            href={`https://rzjets.net/aircraft/?q=${msn}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="size-3" />
+            RZJets
+          </a>
+        </div>
+      </div>
+
+      {/* Source indicators + refresh */}
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <div className="flex gap-1.5">
+          {profile.sources.hexdb && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">hexdb</Badge>
+          )}
+          {profile.sources.planespotters && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">planespotters</Badge>
+          )}
+          {profile.sources.aerodatabox && (
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0">aerodatabox</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span>Fetched {new Date(profile.fetchedAt).toLocaleDateString()}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-1.5"
+            onClick={() => {
+              const regParam = registration ? `&reg=${encodeURIComponent(registration)}` : '';
+              queryClient.invalidateQueries({ queryKey: ['aircraft', msn] });
+              api.get(`/aircraft/${msn}?refresh=true${regParam}`).then(() => {
+                queryClient.invalidateQueries({ queryKey: ['aircraft', msn] });
+              });
+            }}
+            title="Refresh from external sources"
+          >
+            <RefreshCw className="size-3" />
+          </Button>
+        </div>
+      </div>
+
+      {profile.fetchErrors && (
+        <p className="text-xs text-amber-400/80">
+          Partial fetch: {profile.fetchErrors}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // --- Lineage card ---
 
-function LineageCard({ section }: { section: PanelSectionFull }) {
+function LineageCard({
+  section,
+  onPatch,
+}: {
+  section: PanelSectionFull;
+  onPatch: (id: string, data: Record<string, unknown>) => void;
+}) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [editingMsn, setEditingMsn] = useState(false);
+  const [msnDraft, setMsnDraft] = useState('');
+  const msnInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingMsn) {
+      msnInputRef.current?.focus();
+      msnInputRef.current?.select();
+    }
+  }, [editingMsn]);
+
+  function startEditMsn() {
+    setMsnDraft(section.sourceMsn ?? '');
+    setEditingMsn(true);
+  }
+
+  function saveMsn() {
+    setEditingMsn(false);
+    const trimmed = msnDraft.trim().toUpperCase();
+    if (trimmed !== (section.sourceMsn ?? '')) {
+      onPatch(section.id, { sourceMsn: trimmed || null });
+    }
+  }
+
   const hasLineage =
     section.sourceMsn ||
     section.aircraftVariant ||
@@ -231,52 +523,104 @@ function LineageCard({ section }: { section: PanelSectionFull }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {!hasLineage ? (
-          <p className="text-sm text-muted-foreground italic">No lineage data recorded</p>
-        ) : (
-          <>
-            {section.sourceMsn && (
-              <div className="text-sm">
-                <span className="text-muted-foreground">Source MSN: </span>
-                <span className="font-mono font-medium">{section.sourceMsn}</span>
-              </div>
-            )}
+        {/* Source MSN — always shown, editable */}
+        <div className="text-sm">
+          <span className="text-muted-foreground">Source MSN: </span>
+          {editingMsn ? (
+            <span className="inline-flex items-center gap-1">
+              <input
+                ref={msnInputRef}
+                type="text"
+                value={msnDraft}
+                onChange={(e) => setMsnDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveMsn();
+                  if (e.key === 'Escape') setEditingMsn(false);
+                }}
+                onBlur={saveMsn}
+                className="bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-sm font-mono w-24 focus:outline-none focus:border-blue-500"
+                placeholder="e.g. E3232"
+              />
+            </span>
+          ) : section.sourceMsn ? (
+            <button
+              type="button"
+              onClick={startEditMsn}
+              className="font-mono font-medium tabular-nums hover:bg-slate-800 rounded px-1 -mx-1 transition-colors cursor-text"
+              title="Click to edit"
+            >
+              {section.sourceMsn}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startEditMsn}
+              className="inline-flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+            >
+              <Plus className="size-3" />
+              <span className="text-xs">Add MSN</span>
+            </button>
+          )}
+        </div>
 
-            {section.aircraftVariant && (
-              <div className="text-sm">
-                <span className="text-muted-foreground">Variant: </span>
-                <span className="font-medium">{section.aircraftVariant}</span>
-              </div>
-            )}
+        {section.aircraftVariant && (
+          <div className="text-sm">
+            <span className="text-muted-foreground">Variant: </span>
+            <span className="font-medium">{section.aircraftVariant}</span>
+          </div>
+        )}
 
-            {section.registration && (
-              <div className="text-sm">
-                <span className="text-muted-foreground">Registration: </span>
-                <span className="font-mono font-medium">{section.registration}</span>
-              </div>
-            )}
+        {section.registration && (
+          <div className="text-sm">
+            <span className="text-muted-foreground">Registration: </span>
+            <span className="font-mono font-medium">{section.registration}</span>
+          </div>
+        )}
 
-            {section.lineageNotes && (
-              <p className="text-sm text-muted-foreground">{section.lineageNotes}</p>
-            )}
+        {section.lineageNotes && (
+          <p className="text-sm text-muted-foreground">{section.lineageNotes}</p>
+        )}
 
-            {section.lineageUrls.length > 0 && (
-              <div className="space-y-1 pt-1">
-                {section.lineageUrls.map((url, i) => (
-                  <a
-                    key={i}
-                    href={url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-sm text-primary hover:underline"
-                  >
-                    <ExternalLink className="size-3.5 shrink-0" />
-                    <span className="truncate">{url}</span>
-                  </a>
-                ))}
-              </div>
+        {section.lineageUrls.length > 0 && (
+          <div className="space-y-1 pt-1">
+            {section.lineageUrls.map((url, i) => (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-primary hover:underline"
+              >
+                <ExternalLink className="size-3.5 shrink-0" />
+                <span className="truncate">{url}</span>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {/* Aircraft details toggle */}
+        {section.sourceMsn && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full mt-2"
+            onClick={() => setShowDetails(!showDetails)}
+          >
+            <Plane className="size-3.5 mr-1.5" />
+            {showDetails ? 'Hide' : 'View'} Aircraft Details
+            {showDetails ? (
+              <ChevronUp className="size-3.5 ml-1.5" />
+            ) : (
+              <ChevronDown className="size-3.5 ml-1.5" />
             )}
-          </>
+          </Button>
+        )}
+
+        {showDetails && section.sourceMsn && (
+          <AircraftDetailPanel
+            msn={section.sourceMsn}
+            registration={section.registration}
+          />
         )}
       </CardContent>
     </Card>
@@ -420,7 +764,7 @@ export default function ReferencePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {lineageSorted.map((section) => (
-                <LineageCard key={section.id} section={section} />
+                <LineageCard key={section.id} section={section} onPatch={handlePatch} />
               ))}
             </div>
           )}

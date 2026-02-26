@@ -229,6 +229,38 @@ model PsuConfig {
   updatedAt           DateTime @updatedAt
 }
 
+// ─── Aircraft Cache ─────────────────────────────────────
+
+model AircraftCache {
+  id                  String   @id @default(cuid())
+  msn                 String   @unique
+  currentRegistration String?
+
+  // hexdb.io data
+  icaoHex             String?
+  icaoTypeCode        String?
+  manufacturer        String?
+  registeredOwners    String?
+  operatorFlagCode    String?
+
+  // AeroDataBox data (optional, richer)
+  typeName            String?
+  airlineName         String?
+  builtDate           String?
+  imageUrl            String?
+  registrationHistory Json?
+
+  // Planespotters.net photos
+  photos              Json?
+
+  // Cache management
+  fetchedAt           DateTime @default(now())
+  fetchErrors         String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
 // ─── Journal Entry ──────────────────────────────────────
 
 model JournalEntry {

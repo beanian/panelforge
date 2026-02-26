@@ -13,6 +13,7 @@ import { bomRoutes } from './bom';
 import { wiringDiagramRoutes } from './wiring-diagram';
 import { journalRoutes } from './journal';
 import { exportRoutes, importRoutes } from './export';
+import { aircraftRoutes } from './aircraft';
 
 export const routes = Router();
 
@@ -31,3 +32,4 @@ routes.use('/wiring-diagram', wiringDiagramRoutes);
 routes.use('/journal', journalRoutes);
 routes.use('/export', exportRoutes);
 routes.use('/import', importRoutes);
+routes.use('/aircraft', aircraftRoutes);
