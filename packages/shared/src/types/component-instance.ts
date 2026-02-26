@@ -1,7 +1,7 @@
-import { BuildStatus, PowerRail } from './enums';
-import { ComponentType } from './component-type';
-import { PanelSection } from './panel-section';
-import { PinAssignment } from './pin-assignment';
+import type { BuildStatus, PowerRail } from './enums';
+import type { ComponentType } from './component-type';
+import type { PanelSection } from './panel-section';
+import type { PinAssignment } from './pin-assignment';
 
 export interface ComponentInstance {
   id: string;

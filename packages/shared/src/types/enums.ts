@@ -1,46 +1,53 @@
-export enum PinMode {
-  INPUT = 'INPUT',
-  OUTPUT = 'OUTPUT',
-  PWM = 'PWM',
-}
+export const PinMode = {
+  INPUT: 'INPUT',
+  OUTPUT: 'OUTPUT',
+  PWM: 'PWM',
+} as const;
+export type PinMode = (typeof PinMode)[keyof typeof PinMode];
 
-export enum PinType {
-  DIGITAL = 'DIGITAL',
-  ANALOG = 'ANALOG',
-}
+export const PinType = {
+  DIGITAL: 'DIGITAL',
+  ANALOG: 'ANALOG',
+} as const;
+export type PinType = (typeof PinType)[keyof typeof PinType];
 
-export enum PowerRail {
-  FIVE_V = 'FIVE_V',
-  NINE_V = 'NINE_V',
-  TWENTY_SEVEN_V = 'TWENTY_SEVEN_V',
-  NONE = 'NONE',
-}
+export const PowerRail = {
+  FIVE_V: 'FIVE_V',
+  NINE_V: 'NINE_V',
+  TWENTY_SEVEN_V: 'TWENTY_SEVEN_V',
+  NONE: 'NONE',
+} as const;
+export type PowerRail = (typeof PowerRail)[keyof typeof PowerRail];
 
-export enum WiringStatus {
-  UNASSIGNED = 'UNASSIGNED',
-  PLANNED = 'PLANNED',
-  WIRED = 'WIRED',
-  TESTED = 'TESTED',
-  COMPLETE = 'COMPLETE',
-}
+export const WiringStatus = {
+  UNASSIGNED: 'UNASSIGNED',
+  PLANNED: 'PLANNED',
+  WIRED: 'WIRED',
+  TESTED: 'TESTED',
+  COMPLETE: 'COMPLETE',
+} as const;
+export type WiringStatus = (typeof WiringStatus)[keyof typeof WiringStatus];
 
-export enum BuildStatus {
-  NOT_ONBOARDED = 'NOT_ONBOARDED',
-  PLANNED = 'PLANNED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETE = 'COMPLETE',
-  HAS_ISSUES = 'HAS_ISSUES',
-}
+export const BuildStatus = {
+  NOT_ONBOARDED: 'NOT_ONBOARDED',
+  PLANNED: 'PLANNED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETE: 'COMPLETE',
+  HAS_ISSUES: 'HAS_ISSUES',
+} as const;
+export type BuildStatus = (typeof BuildStatus)[keyof typeof BuildStatus];
 
-export enum VariableType {
-  SIMVAR = 'SIMVAR',
-  LVAR = 'LVAR',
-  HVAR = 'HVAR',
-}
+export const VariableType = {
+  SIMVAR: 'SIMVAR',
+  LVAR: 'LVAR',
+  HVAR: 'HVAR',
+} as const;
+export type VariableType = (typeof VariableType)[keyof typeof VariableType];
 
-export enum MobiFlightEventType {
-  INPUT_ACTION = 'INPUT_ACTION',
-  OUTPUT_CONDITION = 'OUTPUT_CONDITION',
-  STEPPER_GAUGE = 'STEPPER_GAUGE',
-  LED_PWM = 'LED_PWM',
-}
+export const MobiFlightEventType = {
+  INPUT_ACTION: 'INPUT_ACTION',
+  OUTPUT_CONDITION: 'OUTPUT_CONDITION',
+  STEPPER_GAUGE: 'STEPPER_GAUGE',
+  LED_PWM: 'LED_PWM',
+} as const;
+export type MobiFlightEventType = (typeof MobiFlightEventType)[keyof typeof MobiFlightEventType];

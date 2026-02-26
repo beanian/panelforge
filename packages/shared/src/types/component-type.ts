@@ -1,4 +1,4 @@
-import { PinMode, PinType, PowerRail } from './enums';
+import type { PinMode } from './enums';
 
 export interface ComponentType {
   id: string;

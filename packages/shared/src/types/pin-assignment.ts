@@ -1,5 +1,5 @@
-import { PinMode, PinType, PowerRail, WiringStatus } from './enums';
-import { MobiFlightMapping } from './mobiflight';
+import type { PinMode, PinType, PowerRail, WiringStatus } from './enums';
+import type { MobiFlightMapping } from './mobiflight';
 
 export interface PinAssignment {
   id: string;

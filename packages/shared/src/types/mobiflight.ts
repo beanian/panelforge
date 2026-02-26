@@ -1,4 +1,4 @@
-import { MobiFlightEventType, VariableType } from './enums';
+import type { MobiFlightEventType, VariableType } from './enums';
 
 export interface MobiFlightMapping {
   id: string;

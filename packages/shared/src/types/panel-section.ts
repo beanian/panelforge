@@ -1,4 +1,4 @@
-import { BuildStatus, PowerRail } from './enums';
+import type { BuildStatus, PowerRail } from './enums';
 
 export interface PanelSection {
   id: string;
