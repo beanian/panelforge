@@ -290,7 +290,7 @@ function AircraftDetailPanel({
                 className="shrink-0 group"
               >
                 <img
-                  src={photo.thumbnailUrl}
+                  src={`/api/aircraft/photo-proxy?url=${encodeURIComponent(photo.thumbnailUrl)}`}
                   alt={`Photo by ${photo.photographer}`}
                   className="h-20 w-32 object-cover rounded border border-border/50 group-hover:border-primary transition-colors"
                   loading="lazy"
