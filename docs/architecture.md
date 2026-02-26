@@ -13,6 +13,70 @@ panelforge/
 
 The client communicates with the server over a REST API. The server owns all business logic and database access. The shared package provides TypeScript interfaces and Zod validation schemas consumed by both sides.
 
+```mermaid
+graph TB
+    subgraph Browser
+        UI["React SPA<br/>(Vite + shadcn/ui)"]
+        RQ["TanStack React Query<br/>(cache + mutations)"]
+        UI --> RQ
+    end
+
+    subgraph Azure Container Apps
+        subgraph Express Server
+            Static["Static File Server<br/>(client/dist)"]
+            API["REST API<br/>(/api/*)"]
+            Routes["14 Route Modules"]
+            Services["15 Service Modules"]
+            Validate["Zod Validation<br/>Middleware"]
+            API --> Validate --> Routes --> Services
+        end
+    end
+
+    subgraph Data
+        DB[("PostgreSQL<br/>11 Prisma Models")]
+        Cache[("AircraftCache<br/>(7-day TTL)")]
+    end
+
+    subgraph External APIs
+        Hexdb["hexdb.io<br/>(aircraft info)"]
+        PS["Planespotters.net<br/>(photos)"]
+        ADB["AeroDataBox<br/>(operator history)"]
+        AL["AirLabs<br/>(MSN resolution)"]
+    end
+
+    subgraph Shared Package
+        Types["TypeScript Interfaces"]
+        Validators["Zod Schemas"]
+    end
+
+    RQ -- "fetch /api/*" --> API
+    Browser -- "GET /*" --> Static
+    Services --> DB
+    Services --> Cache
+    Services -- "server-side fetch" --> Hexdb
+    Services -- "server-side fetch" --> PS
+    Services -- "server-side fetch" --> ADB
+    Services -- "server-side fetch" --> AL
+    Types -.-> UI
+    Types -.-> Services
+    Validators -.-> Validate
+    Validators -.-> UI
+
+    style Browser fill:#1e293b,stroke:#3b82f6,color:#e2e8f0
+    style Express Server fill:#1e293b,stroke:#10b981,color:#e2e8f0
+    style Data fill:#1e293b,stroke:#f59e0b,color:#e2e8f0
+    style External APIs fill:#1e293b,stroke:#8b5cf6,color:#e2e8f0
+    style Shared Package fill:#1e293b,stroke:#6b7280,color:#e2e8f0
+```
+
+### How it fits together
+
+1. **Browser** — The React SPA renders the UI and manages server state through React Query. All data fetching goes through `/api/*` endpoints.
+2. **Express Server** — Serves the built client as static files and handles all API routes. Requests pass through Zod validation middleware before reaching service logic.
+3. **Services** — 15 modules encapsulating business logic. Each service owns a domain (boards, pins, power budget, aircraft, etc.) and talks to PostgreSQL via Prisma.
+4. **External APIs** — Aircraft lineage data is fetched server-side (never from the browser) to keep API keys secure and bypass CORS/hotlink restrictions. Results are cached in the database.
+5. **Shared Package** — TypeScript types and Zod schemas are consumed by both client and server, ensuring type safety end-to-end without duplication.
+
 ## Technology Stack
 
 | Layer | Technology |
