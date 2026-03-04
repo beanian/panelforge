@@ -127,9 +127,7 @@ Previous images are retained in ACR with their commit SHA tags.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AIRLABS_API_KEY` | AirLabs API key for MSN resolution | Empty (feature disabled) |
-| `AERODATABOX_API_KEY` | RapidAPI key for AeroDataBox | Empty (feature disabled) |
-| `AIRCRAFT_CACHE_TTL_HOURS` | Cache expiry for aircraft data | `168` (7 days) |
+| `AIRCRAFT_CACHE_TTL_HOURS` | Cache expiry for aircraft photo data | `168` (7 days) |
 
 ### CI/CD Secrets (GitHub)
 
@@ -249,10 +247,7 @@ volumes:
              ▼
       ┌──────────────────────────────┐
       │  External APIs (outbound)    │
-      │  - hexdb.io                  │
       │  - api.planespotters.net     │
-      │  - aerodatabox.p.rapidapi.com│
-      │  - airlabs.co                │
       └──────────────────────────────┘
 ```
 

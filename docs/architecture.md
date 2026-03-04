@@ -38,10 +38,7 @@ graph TB
     end
 
     subgraph External APIs
-        Hexdb["hexdb.io<br/>(aircraft info)"]
         PS["Planespotters.net<br/>(photos)"]
-        ADB["AeroDataBox<br/>(operator history)"]
-        AL["AirLabs<br/>(MSN resolution)"]
     end
 
     subgraph Shared Package
@@ -53,10 +50,7 @@ graph TB
     Browser -- "GET /*" --> Static
     Services --> DB
     Services --> Cache
-    Services -- "server-side fetch" --> Hexdb
     Services -- "server-side fetch" --> PS
-    Services -- "server-side fetch" --> ADB
-    Services -- "server-side fetch" --> AL
     Types -.-> UI
     Types -.-> Services
     Validators -.-> Validate
@@ -74,7 +68,7 @@ graph TB
 1. **Browser** — The React SPA renders the UI and manages server state through React Query. All data fetching goes through `/api/*` endpoints.
 2. **Express Server** — Serves the built client as static files and handles all API routes. Requests pass through Zod validation middleware before reaching service logic.
 3. **Services** — 15 modules encapsulating business logic. Each service owns a domain (boards, pins, power budget, aircraft, etc.) and talks to PostgreSQL via Prisma.
-4. **External APIs** — Aircraft lineage data is fetched server-side (never from the browser) to keep API keys secure and bypass CORS/hotlink restrictions. Results are cached in the database.
+4. **External APIs** — Aircraft photos are fetched server-side from Planespotters.net (never from the browser) to bypass CDN hotlink restrictions. Aircraft metadata comes from a static lookup table. Results are cached in the database.
 5. **Shared Package** — TypeScript types and Zod schemas are consumed by both client and server, ensuring type safety end-to-end without duplication.
 
 ## Technology Stack
@@ -291,9 +285,9 @@ In development, Vite proxies `/api` requests to `localhost:3001`. In production,
 
 ## External Integrations
 
-### Aircraft Lineage APIs
+### Aircraft Lineage
 
-The aircraft service fetches data from three external APIs, caches results in PostgreSQL, and serves them through a unified `AircraftProfile` response:
+The aircraft service uses a static lookup table for aircraft metadata and Planespotters.net for photos, caching results in PostgreSQL:
 
 ```
 Client request → /api/aircraft/:msn
@@ -302,29 +296,26 @@ Client request → /api/aircraft/:msn
               Check cache (TTL: 7 days)
                        │ (miss or expired)
                        ▼
-              Resolve MSN → registration
+              Resolve MSN → registrations
               ┌─────────────────────────┐
-              │ 1. Provided reg hint    │
-              │ 2. BAe 146 lookup table │
-              │ 3. Cached registration  │
-              │ 4. AirLabs API          │
+              │ BAe 146 lookup table    │
+              │ (all historical regs)   │
               └─────────────────────────┘
                        │
                        ▼
-              Fetch in parallel (Promise.allSettled)
+              Fetch photos (Promise.allSettled)
               ┌─────────────────────────┐
-              │ hexdb.io        → info  │
-              │ Planespotters   → photos│
-              │ AeroDataBox     → history│
+              │ Planespotters × N regs  │
+              │ (deduplicate + cap 10)  │
               └─────────────────────────┘
                        │
                        ▼
-              Merge + upsert cache + return
+              Upsert cache + return
 ```
 
-A static lookup table (`data/bae146-production.ts`) provides MSN-to-registration mappings for the specific BAe 146 airframes the panels were sourced from. This avoids dependence on external APIs for the primary use case.
+A static lookup table (`data/bae146-production.ts`) provides MSN-to-registration mappings for the specific BAe 146 airframes the panels were sourced from. The BAe 146 is a retired fleet (~394 airframes), so live aviation APIs don't reliably cover these aircraft. The static table stores all known historical registrations per MSN, enabling photo searches across the aircraft's full identity chain.
 
-Photos are served through `/api/aircraft/photo-proxy` to bypass Planespotters CDN hotlink protection.
+Photos are fetched from Planespotters.net across all known registrations and served through `/api/aircraft/photo-proxy` to bypass CDN hotlink protection.
 
 ### MobiFlight Connector
 

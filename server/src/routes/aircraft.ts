@@ -41,8 +41,8 @@ aircraftRoutes.get(
 
 // GET /api/aircraft/:msn — get aircraft profile by MSN
 // Query params:
-//   reg — current registration (used for external API lookups)
-//   refresh — set to "true" to force re-fetch from external APIs
+//   reg — registration hint for photo lookups
+//   refresh — set to "true" to force re-fetch
 aircraftRoutes.get(
   '/:msn',
   asyncHandler(async (req, res) => {
@@ -51,7 +51,7 @@ aircraftRoutes.get(
       ? String(req.query.reg)
       : null;
     const profile = await aircraftService.getByMsn(
-      req.params.msn,
+      String(req.params.msn),
       reg,
       forceRefresh,
     );

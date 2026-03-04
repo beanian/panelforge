@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 import { config } from '../config';
 import { lookupByMsn } from '../data/bae146-production';
+import { planeloggerService } from './planelogger.service';
 import type {
   AircraftProfile,
   AircraftPhoto,
@@ -12,144 +13,85 @@ const CACHE_TTL_MS = config.aircraftCacheTtlHours * 60 * 60 * 1000;
 
 export const aircraftService = {
   /**
-   * Get aircraft profile by MSN (the stable identity of an aircraft).
+   * Get aircraft profile by MSN.
    *
-   * Registration resolution chain:
-   * 1. Use provided registration hint (if any)
-   * 2. Check local BAe 146 production lookup table
-   * 3. Check cached registration from a previous fetch
-   * 4. Try AirLabs API to resolve MSN → registration
-   * 5. Use the registration to query Planespotters, hexdb, AeroDataBox
-   * 6. Cache everything under the MSN key
+   * Resolution chain for operator history & registrations:
+   * 1. Check DB cache (if valid TTL and has registrationHistory)
+   * 2. Check static BAe 146 production lookup table
+   * 3. Try PlaneLogger by MSN (works for Avro RJ70/85/100 via construction list)
+   * 4. Try PlaneLogger by registration hint (works for all if user provided one)
+   *
+   * Photos are fetched from Planespotters.net across all known registrations.
    */
   async getByMsn(
     msn: string,
     registration: string | null,
     forceRefresh = false,
   ): Promise<AircraftProfile> {
-    const cleanMsn = msn.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    let cleanMsn = msn.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+    // BAe 146 MSNs always start with E — normalize if user entered just digits
+    if (/^\d+$/.test(cleanMsn)) {
+      cleanMsn = 'E' + cleanMsn;
+    }
     if (!cleanMsn) {
       throw new AppError(400, 'Invalid MSN');
     }
 
-    // Check cache
-    if (!forceRefresh) {
-      const cached = await prisma.aircraftCache.findUnique({
-        where: { msn: cleanMsn },
-      });
-      if (cached && Date.now() - cached.fetchedAt.getTime() < CACHE_TTL_MS) {
-        return toProfile(cached);
-      }
-    }
-
-    // Start with the provided registration
-    let reg = registration?.toUpperCase().replace(/[^A-Z0-9-]/g, '') || null;
-
-    // Check the local BAe 146 production lookup table
+    // Static fallback data
     const productionEntry = lookupByMsn(cleanMsn);
-    if (!reg && productionEntry) {
-      reg = productionEntry.registration;
-    }
 
-    // If no registration yet, check if we have one cached from a previous fetch
-    if (!reg) {
-      const existing = await prisma.aircraftCache.findUnique({
-        where: { msn: cleanMsn },
-        select: { currentRegistration: true },
-      });
-      if (existing?.currentRegistration) {
-        reg = existing.currentRegistration;
+    // Check cache
+    const existing = await prisma.aircraftCache.findUnique({
+      where: { msn: cleanMsn },
+    });
+
+    if (!forceRefresh && existing) {
+      const age = Date.now() - existing.fetchedAt.getTime();
+      if (age < CACHE_TTL_MS) {
+        return toProfile(existing, productionEntry);
       }
     }
 
-    // If still no registration, try to resolve MSN → registration via AirLabs
-    let airlabsData: AirlabsResult | null = null;
-    if (!reg && config.airlabsApiKey) {
-      airlabsData = await fetchAirlabs(cleanMsn);
-      if (airlabsData?.regNumber) {
-        reg = airlabsData.regNumber;
-      }
-    }
+    const regHint =
+      registration?.toUpperCase().replace(/[^A-Z0-9-]/g, '') || null;
 
-    // Collect error messages for diagnostics
+    // Resolve operator history and registrations
+    const resolved = await resolveAircraft(
+      cleanMsn,
+      regHint,
+      productionEntry,
+      existing,
+    );
+
+    // Fetch photos from Planespotters across all known registrations
     const errors: string[] = [];
+    let photos: AircraftPhoto[] = [];
 
-    // Build list of all known registrations to try for photos
-    const allRegs = productionEntry?.allRegistrations ?? (reg ? [reg] : []);
-    // Ensure the current reg is included even if not in the production table
-    if (reg && !allRegs.includes(reg)) {
-      allRegs.unshift(reg);
-    }
-
-    // Fetch from registration-based APIs in parallel (only if we have a reg)
-    const [hexdbResult, photosResult, aeroResult] = reg
-      ? await Promise.allSettled([
-          fetchHexdb(reg),
-          fetchAllPhotos(allRegs),
-          config.aerodataboxApiKey
-            ? fetchAerodatabox(reg)
-            : Promise.resolve(null),
-        ])
-      : [
-          { status: 'fulfilled' as const, value: null },
-          { status: 'fulfilled' as const, value: [] as AircraftPhoto[] },
-          { status: 'fulfilled' as const, value: null },
-        ];
-
-    let hexdb =
-      hexdbResult.status === 'fulfilled' ? hexdbResult.value : null;
-    const photos =
-      photosResult.status === 'fulfilled' ? photosResult.value : [];
-    const aero =
-      aeroResult.status === 'fulfilled' ? aeroResult.value : null;
-
-    if (hexdbResult.status === 'rejected')
-      errors.push(`hexdb: ${hexdbResult.reason}`);
-    if (photosResult.status === 'rejected')
-      errors.push(`planespotters: ${photosResult.reason}`);
-    if (aeroResult.status === 'rejected')
-      errors.push(`aerodatabox: ${aeroResult.reason}`);
-    if (!reg) errors.push('no registration available for API lookups');
-
-    // Detect registration re-use: if hexdb returns a different aircraft type
-    // than what the production table says, the registration has been recycled
-    if (hexdb && productionEntry && hexdb.icaoTypeCode) {
-      const expectedTypes = ['B461', 'B462', 'B463', 'RJ1H', 'RJ85', 'RJ70'];
-      if (!expectedTypes.includes(hexdb.icaoTypeCode)) {
-        errors.push(
-          `hexdb: registration ${reg} now assigned to ${hexdb.icaoTypeCode}, not a BAe 146/Avro RJ`,
-        );
-        hexdb = null;
+    if (resolved.allRegistrations.length > 0) {
+      try {
+        photos = await fetchAllPhotos(resolved.allRegistrations);
+      } catch (e) {
+        errors.push(`planespotters: ${e}`);
       }
+    } else {
+      errors.push('no registrations available for photo lookup');
     }
 
-    // Merge data — prefer live API data, fall back to AirLabs, then production table
-    const manufacturer =
-      hexdb?.manufacturer ?? airlabsData?.manufacturer ?? null;
-    const typeName =
-      aero?.typeName ?? airlabsData?.model ?? productionEntry?.type ?? null;
-    const airlineName =
-      aero?.airlineName ??
-      airlabsData?.airlineName ??
-      productionEntry?.operator ??
-      null;
-    const builtDate = aero?.builtDate ?? airlabsData?.built ?? null;
-
-    // Upsert cache keyed by MSN
+    // Upsert cache
     const cacheData = {
       msn: cleanMsn,
-      currentRegistration: reg,
-      icaoHex: hexdb?.icaoHex ?? airlabsData?.hex ?? null,
-      icaoTypeCode: hexdb?.icaoTypeCode ?? null,
-      manufacturer,
-      registeredOwners: hexdb?.registeredOwners ?? null,
-      operatorFlagCode: hexdb?.operatorFlagCode ?? null,
-      typeName,
-      airlineName,
-      builtDate,
-      imageUrl: aero?.imageUrl ?? null,
-      registrationHistory: (aero?.registrationHistory as any) ?? [],
-      photos: (photos as any) ?? [],
+      currentRegistration: resolved.currentRegistration,
+      icaoHex: null,
+      icaoTypeCode: null,
+      manufacturer: null,
+      registeredOwners: null,
+      operatorFlagCode: null,
+      typeName: resolved.typeName,
+      airlineName: resolved.operator,
+      builtDate: null,
+      imageUrl: null,
+      registrationHistory: resolved.history as any,
+      photos: photos as any,
       fetchedAt: new Date(),
       fetchErrors: errors.length > 0 ? errors.join('; ') : null,
     };
@@ -160,78 +102,128 @@ export const aircraftService = {
       create: cacheData,
     });
 
-    return toProfile(record);
+    return toProfile(record, productionEntry);
   },
 
   async listCached(): Promise<AircraftProfile[]> {
     const records = await prisma.aircraftCache.findMany({
       orderBy: { msn: 'asc' },
     });
-    return records.map(toProfile);
+    return records.map((r) => toProfile(r, lookupByMsn(r.msn)));
   },
 };
 
-// --- AirLabs (MSN → registration resolver) ---
+// --- Aircraft resolution ---
 
-interface AirlabsResult {
-  regNumber: string | null;
-  hex: string | null;
-  manufacturer: string | null;
-  model: string | null;
-  airlineName: string | null;
-  built: string | null;
+interface ResolvedAircraft {
+  currentRegistration: string | null;
+  typeName: string | null;
+  operator: string | null;
+  status: string | null;
+  history: RegistrationHistoryEntry[];
+  allRegistrations: string[];
 }
 
-async function fetchAirlabs(msn: string): Promise<AirlabsResult | null> {
-  try {
-    const res = await fetch(
-      `https://airlabs.co/api/v9/fleets?api_key=${encodeURIComponent(config.airlabsApiKey)}&msn=${encodeURIComponent(msn)}`,
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const aircraft = data.response?.[0];
-    if (!aircraft) return null;
+import type { Bae146Entry } from '../data/bae146-production';
 
+async function resolveAircraft(
+  msn: string,
+  regHint: string | null,
+  productionEntry: Bae146Entry | null,
+  existing: any,
+): Promise<ResolvedAircraft> {
+  // 1. Check static table (most reliable for known aircraft)
+  if (productionEntry) {
     return {
-      regNumber: aircraft.reg_number || null,
-      hex: aircraft.hex || null,
-      manufacturer: aircraft.manufacturer || null,
-      model: aircraft.model || null,
-      airlineName: aircraft.airline_iata || aircraft.airline_icao || null,
-      built: aircraft.built ? String(aircraft.built) : null,
+      currentRegistration: regHint || productionEntry.registration,
+      typeName: productionEntry.type,
+      operator: productionEntry.operator,
+      status: productionEntry.status,
+      history: productionEntry.operatorHistory,
+      allRegistrations: productionEntry.allRegistrations,
     };
-  } catch {
-    return null;
   }
-}
 
-// --- External API fetchers (registration-based) ---
+  // 2. Check if DB cache already has operator history (from a previous PlaneLogger fetch)
+  const dbHistory = parseHistory(existing?.registrationHistory);
+  if (dbHistory.length > 0) {
+    const allRegs = [...new Set(dbHistory.map((h) => h.registration))];
+    const lastEntry = dbHistory[dbHistory.length - 1];
+    return {
+      currentRegistration:
+        regHint || lastEntry.registration || existing?.currentRegistration,
+      typeName: existing?.typeName ?? null,
+      operator: lastEntry.operator || existing?.airlineName || null,
+      status: null,
+      history: dbHistory,
+      allRegistrations: allRegs,
+    };
+  }
 
-async function fetchHexdb(reg: string) {
-  const hexRes = await fetch(
-    `https://hexdb.io/reg-hex?reg=${encodeURIComponent(reg)}`,
-  );
-  if (!hexRes.ok) return null;
-  const hex = (await hexRes.text()).trim();
-  if (!hex || hex.length < 4) return null;
+  // 3. Try PlaneLogger by MSN (works for Avro RJ70/85/100)
+  try {
+    const plResult = await planeloggerService.lookupByMsn(msn);
+    if (plResult) {
+      const lastEntry =
+        plResult.operatorHistory[plResult.operatorHistory.length - 1];
+      return {
+        currentRegistration: regHint || plResult.registration,
+        typeName: plResult.type,
+        operator: lastEntry?.operator || null,
+        status: plResult.status,
+        history: plResult.operatorHistory,
+        allRegistrations: plResult.allRegistrations,
+      };
+    }
+  } catch {
+    // PlaneLogger unavailable — continue with fallbacks
+  }
 
-  const detailRes = await fetch(`https://hexdb.io/api/v1/aircraft/${hex}`);
-  if (!detailRes.ok) return null;
-  const data = await detailRes.json();
+  // 4. Try PlaneLogger by registration hint
+  const reg = regHint || existing?.currentRegistration;
+  if (reg) {
+    try {
+      const plResult = await planeloggerService.lookupByRegistration(reg);
+      if (plResult) {
+        const lastEntry =
+          plResult.operatorHistory[plResult.operatorHistory.length - 1];
+        return {
+          currentRegistration: regHint || plResult.registration,
+          typeName: plResult.type,
+          operator: lastEntry?.operator || null,
+          status: plResult.status,
+          history: plResult.operatorHistory,
+          allRegistrations: plResult.allRegistrations,
+        };
+      }
+    } catch {
+      // PlaneLogger unavailable — continue with minimal data
+    }
+  }
 
+  // 5. Minimal fallback — just the registration hint
   return {
-    icaoHex: (data.ModeS as string) || hex,
-    icaoTypeCode: (data.ICAOTypeCode as string) || null,
-    manufacturer: (data.Manufacturer as string) || null,
-    registeredOwners: (data.RegisteredOwners as string) || null,
-    operatorFlagCode: (data.OperatorFlagCode as string) || null,
+    currentRegistration: reg || null,
+    typeName: null,
+    operator: null,
+    status: null,
+    history: [],
+    allRegistrations: reg ? [reg] : [],
   };
 }
 
-/**
- * Fetch photos across all known registrations for an airframe.
- * Deduplicates by photo ID and caps at 10 total.
- */
+// --- Helpers ---
+
+function parseHistory(json: any): RegistrationHistoryEntry[] {
+  if (!Array.isArray(json)) return [];
+  return json.filter(
+    (e: any) =>
+      e && typeof e.registration === 'string' && typeof e.operator === 'string',
+  );
+}
+
+// --- Planespotters photo fetchers ---
+
 async function fetchAllPhotos(regs: string[]): Promise<AircraftPhoto[]> {
   if (regs.length === 0) return [];
   const results = await Promise.allSettled(regs.map(fetchPlanespotters));
@@ -250,6 +242,14 @@ async function fetchAllPhotos(regs: string[]): Promise<AircraftPhoto[]> {
   return photos.slice(0, 10);
 }
 
+/** Keywords in Planespotters photo URLs that identify BAe 146 / Avro RJ family */
+const BAE146_LINK_PATTERNS = ['146', 'avro', 'rj85', 'rj100', 'rj70'];
+
+function isBae146Photo(link: string): boolean {
+  const lower = link.toLowerCase();
+  return BAE146_LINK_PATTERNS.some((p) => lower.includes(p));
+}
+
 async function fetchPlanespotters(reg: string): Promise<AircraftPhoto[]> {
   const res = await fetch(
     `https://api.planespotters.net/pub/photos/reg/${encodeURIComponent(reg)}`,
@@ -257,75 +257,41 @@ async function fetchPlanespotters(reg: string): Promise<AircraftPhoto[]> {
   if (!res.ok) return [];
   const data = await res.json();
 
-  return (data.photos || []).slice(0, 10).map((p: any) => ({
-    id: String(p.id),
-    thumbnailUrl: p.thumbnail_large?.src || p.thumbnail?.src || '',
-    largeUrl: p.thumbnail_large?.src || '',
-    link: p.link || '',
-    photographer: p.photographer || 'Unknown',
-  }));
-}
-
-async function fetchAerodatabox(reg: string) {
-  const res = await fetch(
-    `https://aerodatabox.p.rapidapi.com/aircrafts/reg/${encodeURIComponent(reg)}?withRegistrations=true&withImage=true`,
-    {
-      headers: {
-        'X-RapidAPI-Key': config.aerodataboxApiKey,
-        'X-RapidAPI-Host': 'aerodatabox.p.rapidapi.com',
-      },
-    },
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-
-  const history: RegistrationHistoryEntry[] = (
-    data.registrations || []
-  ).map((r: any) => ({
-    registration: r.reg || r.registration || '',
-    operator: r.owner || r.operator || null,
-    dateFrom: r.dateFrom || r.registrationDate || null,
-    dateTo: r.dateTo || null,
-  }));
-
-  return {
-    typeName: (data.typeName as string) || null,
-    airlineName: (data.airlineName as string) || null,
-    builtDate:
-      (data.rolloutDate as string) || (data.firstFlightDate as string) || null,
-    imageUrl: (data.image?.url as string) || null,
-    registrationHistory: history,
-  };
+  return (data.photos || [])
+    .filter((p: any) => isBae146Photo(p.link || ''))
+    .slice(0, 10)
+    .map((p: any) => ({
+      id: String(p.id),
+      thumbnailUrl: p.thumbnail_large?.src || p.thumbnail?.src || '',
+      largeUrl: p.thumbnail_large?.src || '',
+      link: p.link || '',
+      photographer: p.photographer || 'Unknown',
+    }));
 }
 
 // --- Mapper ---
 
-function toProfile(record: any): AircraftProfile {
+function toProfile(
+  record: any,
+  productionEntry: Bae146Entry | null,
+): AircraftProfile {
+  const dbHistory = parseHistory(record.registrationHistory);
+  const registrationHistory: RegistrationHistoryEntry[] =
+    productionEntry?.operatorHistory ??
+    (dbHistory.length > 0 ? dbHistory : []);
+
   return {
     msn: record.msn,
     currentRegistration: record.currentRegistration,
-    icaoHex: record.icaoHex,
-    icaoTypeCode: record.icaoTypeCode,
-    typeName: record.typeName,
-    manufacturer: record.manufacturer,
-    builtDate: record.builtDate,
-    registeredOwners: record.registeredOwners,
-    airlineName: record.airlineName,
-    operatorFlagCode: record.operatorFlagCode,
+    typeName: productionEntry?.type ?? record.typeName,
+    operator: productionEntry?.operator ?? record.airlineName,
+    status: productionEntry?.status ?? null,
     photos: (record.photos as AircraftPhoto[]) || [],
-    imageUrl: record.imageUrl,
-    registrationHistory:
-      (record.registrationHistory as RegistrationHistoryEntry[]) || [],
+    registrationHistory,
     fetchedAt:
       record.fetchedAt instanceof Date
         ? record.fetchedAt.toISOString()
         : String(record.fetchedAt),
     fetchErrors: record.fetchErrors,
-    sources: {
-      hexdb: !!record.icaoHex,
-      planespotters:
-        Array.isArray(record.photos) && record.photos.length > 0,
-      aerodatabox: !!record.typeName || !!record.airlineName,
-    },
   };
 }

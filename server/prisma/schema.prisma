@@ -236,14 +236,14 @@ model AircraftCache {
   msn                 String   @unique
   currentRegistration String?
 
-  // hexdb.io data
+  // Legacy columns (kept to avoid destructive migration, always null for new rows)
   icaoHex             String?
   icaoTypeCode        String?
   manufacturer        String?
   registeredOwners    String?
   operatorFlagCode    String?
 
-  // AeroDataBox data (optional, richer)
+  // Aircraft info (from static lookup table)
   typeName            String?
   airlineName         String?
   builtDate           String?

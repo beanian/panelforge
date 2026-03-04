@@ -87,12 +87,7 @@ Two tabs:
 
 **Panel Dimensions** — Editable cards for each section showing width, height, DZUS fastener sizes, dimension notes, and ownership/build status badges. All fields are click-to-edit.
 
-**Aircraft Lineage** — Each panel section can record the MSN (manufacturer serial number) of the aircraft it was sourced from. The lineage cards allow editing the MSN, variant, registration, notes, and reference URLs. Clicking "View Aircraft Details" fetches live data from aviation APIs:
-
-- Photos from Planespotters.net (proxied through the server)
-- Aircraft info from hexdb.io (ICAO hex, type code, registered owner)
-- Operator history from AeroDataBox (registration chain, airline, build date)
-- MSN-to-registration resolution via a static BAe 146 production lookup table
+**Aircraft Lineage** — Each panel section can record the MSN (manufacturer serial number) of the aircraft it was sourced from. The lineage cards allow editing the MSN, variant, registration, notes, and reference URLs. Clicking "View Aircraft Details" shows aircraft type and operator from a static lookup table, plus photos fetched from Planespotters.net across all known historical registrations for the airframe (proxied through the server to bypass CDN hotlink protection).
 
 External links to Planespotters, Airfleets, and RZJets are auto-generated.
 

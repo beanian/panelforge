@@ -257,16 +257,15 @@ function AircraftDetailPanel({
   const hasAnyData =
     profile.photos.length > 0 ||
     profile.typeName ||
-    profile.manufacturer ||
-    profile.registeredOwners ||
+    profile.operator ||
     profile.registrationHistory.length > 0;
 
   if (!hasAnyData) {
     return (
       <div className="pt-3 border-t border-border/50 mt-3">
         <p className="text-sm text-muted-foreground italic">
-          No external data found for MSN {msn}
-          {!registration && ' (no registration available for API lookups)'}
+          No data found for MSN {msn}.
+          {!registration && ' Add a known registration above and try again — older BAe 146 MSNs need at least one registration to look up the full history.'}
         </p>
       </div>
     );
@@ -310,7 +309,7 @@ function AircraftDetailPanel({
         <span className="font-mono font-medium">{msn}</span>
         {profile.currentRegistration && (
           <>
-            <span className="text-muted-foreground">Current Reg</span>
+            <span className="text-muted-foreground">Registration</span>
             <span className="font-mono font-medium">{profile.currentRegistration}</span>
           </>
         )}
@@ -320,62 +319,38 @@ function AircraftDetailPanel({
             <span className="font-medium">{profile.typeName}</span>
           </>
         )}
-        {profile.manufacturer && (
+        {profile.operator && (
           <>
-            <span className="text-muted-foreground">Manufacturer</span>
-            <span className="font-medium">{profile.manufacturer}</span>
+            <span className="text-muted-foreground">Last Operator</span>
+            <span className="font-medium">{profile.operator}</span>
           </>
         )}
-        {profile.builtDate && (
+        {profile.status && (
           <>
-            <span className="text-muted-foreground">Built</span>
-            <span className="font-medium">{profile.builtDate}</span>
-          </>
-        )}
-        {profile.registeredOwners && (
-          <>
-            <span className="text-muted-foreground">Registered Owner</span>
-            <span className="font-medium">{profile.registeredOwners}</span>
-          </>
-        )}
-        {profile.airlineName && (
-          <>
-            <span className="text-muted-foreground">Airline</span>
-            <span className="font-medium">{profile.airlineName}</span>
-          </>
-        )}
-        {profile.icaoTypeCode && (
-          <>
-            <span className="text-muted-foreground">ICAO Type</span>
-            <span className="font-mono">{profile.icaoTypeCode}</span>
-          </>
-        )}
-        {profile.icaoHex && (
-          <>
-            <span className="text-muted-foreground">ICAO Hex</span>
-            <span className="font-mono">{profile.icaoHex}</span>
+            <span className="text-muted-foreground">Status</span>
+            <Badge className={`text-xs w-fit ${profile.status === 'scrapped' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : profile.status === 'stored' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : profile.status === 'active' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'}`}>
+              {profile.status.charAt(0).toUpperCase() + profile.status.slice(1)}
+            </Badge>
           </>
         )}
       </div>
 
-      {/* Operator history timeline */}
+      {/* Operator timeline */}
       {profile.registrationHistory.length > 0 && (
         <div className="space-y-1.5">
           <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            Registration History
+            Operator History
           </h4>
           <div className="space-y-1">
             {profile.registrationHistory.map((entry, i) => (
               <div key={i} className="flex items-center gap-2 text-sm">
-                <span className="font-mono text-xs bg-slate-800 px-1.5 py-0.5 rounded">
+                <span className="font-mono text-xs bg-slate-800 px-1.5 py-0.5 rounded shrink-0">
                   {entry.registration}
                 </span>
-                {entry.operator && <span>{entry.operator}</span>}
-                {(entry.dateFrom || entry.dateTo) && (
-                  <span className="text-muted-foreground text-xs">
-                    {entry.dateFrom || '?'} &ndash; {entry.dateTo || 'present'}
-                  </span>
-                )}
+                <span className="truncate">{entry.operator}</span>
+                <span className="text-muted-foreground text-xs shrink-0">
+                  {entry.dateFrom || '?'} &ndash; {entry.dateTo || 'present'}
+                </span>
               </div>
             ))}
           </div>
@@ -422,37 +397,24 @@ function AircraftDetailPanel({
         </div>
       </div>
 
-      {/* Source indicators + refresh */}
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <div className="flex gap-1.5">
-          {profile.sources.hexdb && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">hexdb</Badge>
-          )}
-          {profile.sources.planespotters && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">planespotters</Badge>
-          )}
-          {profile.sources.aerodatabox && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">aerodatabox</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span>Fetched {new Date(profile.fetchedAt).toLocaleDateString()}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 px-1.5"
-            onClick={() => {
-              const regParam = registration ? `&reg=${encodeURIComponent(registration)}` : '';
+      {/* Cache info + refresh */}
+      <div className="flex items-center justify-end text-xs text-muted-foreground gap-2">
+        <span>Fetched {new Date(profile.fetchedAt).toLocaleDateString()}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5"
+          onClick={() => {
+            const regParam = registration ? `&reg=${encodeURIComponent(registration)}` : '';
+            queryClient.invalidateQueries({ queryKey: ['aircraft', msn] });
+            api.get(`/aircraft/${msn}?refresh=true${regParam}`).then(() => {
               queryClient.invalidateQueries({ queryKey: ['aircraft', msn] });
-              api.get(`/aircraft/${msn}?refresh=true${regParam}`).then(() => {
-                queryClient.invalidateQueries({ queryKey: ['aircraft', msn] });
-              });
-            }}
-            title="Refresh from external sources"
-          >
-            <RefreshCw className="size-3" />
-          </Button>
-        </div>
+            });
+          }}
+          title="Refresh photos"
+        >
+          <RefreshCw className="size-3" />
+        </Button>
       </div>
 
       {profile.fetchErrors && (
@@ -570,10 +532,16 @@ function LineageCard({
           </div>
         )}
 
-        {section.registration && (
+        {/* Registration — editable, shown when MSN is set */}
+        {section.sourceMsn && (
           <div className="text-sm">
             <span className="text-muted-foreground">Registration: </span>
-            <span className="font-mono font-medium">{section.registration}</span>
+            <EditableField
+              value={section.registration}
+              placeholder="e.g. G-SSSH"
+              onSave={(v) => onPatch(section.id, { registration: v.toUpperCase() || null })}
+              className="font-mono"
+            />
           </div>
         )}
 
