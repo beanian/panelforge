@@ -45,15 +45,18 @@ export const aircraftService = {
       where: { msn: cleanMsn },
     });
 
+    const regHint =
+      registration?.toUpperCase().replace(/[^A-Z0-9-]/g, '') || null;
+
     if (!forceRefresh && existing) {
       const age = Date.now() - existing.fetchedAt.getTime();
-      if (age < CACHE_TTL_MS) {
+      const cachedHistory = parseHistory(existing.registrationHistory);
+      // Re-resolve if cache has no history but a new registration hint is available
+      const needsReResolve = cachedHistory.length === 0 && regHint && regHint !== existing.currentRegistration;
+      if (age < CACHE_TTL_MS && !needsReResolve) {
         return toProfile(existing, productionEntry);
       }
     }
-
-    const regHint =
-      registration?.toUpperCase().replace(/[^A-Z0-9-]/g, '') || null;
 
     // Resolve operator history and registrations
     const resolved = await resolveAircraft(

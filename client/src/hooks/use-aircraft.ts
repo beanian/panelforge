@@ -8,7 +8,7 @@ export function useAircraftProfile(
 ) {
   const regParam = registration ? `?reg=${encodeURIComponent(registration)}` : '';
   return useQuery<AircraftProfile>({
-    queryKey: ['aircraft', msn],
+    queryKey: ['aircraft', msn, registration],
     queryFn: () => api.get(`/aircraft/${msn}${regParam}`),
     enabled: !!msn,
     staleTime: 1000 * 60 * 60,
