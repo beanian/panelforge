@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, AlertTriangle, Plus, Minus, ShoppingCart, Trash2, Loader2 } from 'lucide-react';
+import { Package, AlertTriangle, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -29,21 +29,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 
 import { usePanelSections } from '@/hooks/use-panel-sections';
 import {
   useInventory,
   useAdjustInventoryStock,
-  useCreateInventoryItem,
-  useDeleteInventoryItem,
+  useUpdateInventoryItem,
 } from '@/hooks/use-inventory';
 import { useBomCalculate } from '@/hooks/use-bom';
 
@@ -52,17 +43,63 @@ function formatCurrency(value: number | null): string {
   return `£${value.toFixed(2)}`;
 }
 
+function InlineCostEdit({ itemId, currentCost }: { itemId: string; currentCost: number | null }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentCost?.toString() ?? '');
+  const updateItem = useUpdateInventoryItem();
+
+  function handleSave() {
+    const parsed = value.trim() ? parseFloat(value) : null;
+    if (parsed !== null && (isNaN(parsed) || parsed < 0)) {
+      toast.error('Invalid cost');
+      return;
+    }
+    updateItem.mutate(
+      { id: itemId, unitCost: parsed },
+      {
+        onSuccess: () => setEditing(false),
+        onError: (err) => toast.error(`Failed to update cost: ${err.message}`),
+      }
+    );
+  }
+
+  if (editing) {
+    return (
+      <Input
+        type="number"
+        min="0"
+        step="0.01"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSave();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className="h-7 w-20 text-sm tabular-nums text-right"
+        autoFocus
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={() => {
+        setValue(currentCost?.toString() ?? '');
+        setEditing(true);
+      }}
+      className="text-sm tabular-nums hover:underline hover:text-foreground text-muted-foreground cursor-pointer"
+      title="Click to edit"
+    >
+      {formatCurrency(currentCost)}
+    </button>
+  );
+}
+
 export default function BomGeneratorPage() {
   // Inventory state
   const { data: inventory = [], isLoading: inventoryLoading } = useInventory();
   const adjustStock = useAdjustInventoryStock();
-  const createItem = useCreateInventoryItem();
-  const deleteItem = useDeleteInventoryItem();
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [newItemName, setNewItemName] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState('');
-  const [newItemQty, setNewItemQty] = useState('0');
-  const [newItemCost, setNewItemCost] = useState('');
 
   // BOM state
   const { data: sections = [], isLoading: sectionsLoading } = usePanelSections();
@@ -82,36 +119,6 @@ export default function BomGeneratorPage() {
     );
   }
 
-  function handleAddItem() {
-    if (!newItemName.trim()) return;
-    createItem.mutate(
-      {
-        name: newItemName.trim(),
-        category: newItemCategory.trim() || undefined,
-        quantityOnHand: parseInt(newItemQty, 10) || 0,
-        unitCost: newItemCost ? parseFloat(newItemCost) : null,
-      },
-      {
-        onSuccess: () => {
-          toast.success(`Added "${newItemName.trim()}" to inventory`);
-          setAddDialogOpen(false);
-          setNewItemName('');
-          setNewItemCategory('');
-          setNewItemQty('0');
-          setNewItemCost('');
-        },
-        onError: (err) => toast.error(`Failed to add item: ${err.message}`),
-      }
-    );
-  }
-
-  function handleDeleteItem(id: string, name: string) {
-    deleteItem.mutate(id, {
-      onSuccess: () => toast.success(`Deleted "${name}"`),
-      onError: (err) => toast.error(`Failed to delete: ${err.message}`),
-    });
-  }
-
   // BOM derived data
   const itemsToOrder = bomResult?.lineItems.filter((li) => li.quantityToOrder > 0) ?? [];
   const totalItemsToOrder = itemsToOrder.reduce((sum, li) => sum + li.quantityToOrder, 0);
@@ -122,26 +129,20 @@ export default function BomGeneratorPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">BOM Generator</h1>
         <p className="text-sm text-muted-foreground">
-          Manage inventory and calculate bills of materials for panel sections
+          Track stock on hand and calculate what you need to order for each panel section
         </p>
       </div>
 
       {/* Section A: Inventory / Stock on Hand */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="size-5" />
-                Inventory
-              </CardTitle>
-              <CardDescription>Stock on hand for components and materials</CardDescription>
-            </div>
-            <Button size="sm" onClick={() => setAddDialogOpen(true)}>
-              <Plus className="size-4 mr-1.5" />
-              Add Item
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="size-5" />
+            Stock on Hand
+          </CardTitle>
+          <CardDescription>
+            Update quantities as you receive parts. These are subtracted from the BOM calculation below.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {inventoryLoading ? (
@@ -155,7 +156,7 @@ export default function BomGeneratorPage() {
               <Package className="mx-auto size-10 text-muted-foreground/50 mb-3" />
               <h3 className="font-semibold mb-1">No inventory items</h3>
               <p className="text-sm text-muted-foreground">
-                Add items to track your stock on hand.
+                Run the database seed to create the default inventory items.
               </p>
             </div>
           ) : (
@@ -163,11 +164,10 @@ export default function BomGeneratorPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Item</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead className="text-center">On Hand</TableHead>
                     <TableHead className="text-right">Unit Cost</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -175,13 +175,9 @@ export default function BomGeneratorPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-medium text-sm">{item.name}</TableCell>
                       <TableCell>
-                        {item.category ? (
-                          <Badge variant="secondary" className="text-xs">
-                            {item.category}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">--</span>
-                        )}
+                        <Badge variant="secondary" className="text-xs">
+                          {item.category}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1.5">
@@ -207,18 +203,8 @@ export default function BomGeneratorPage() {
                           </Button>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right text-sm tabular-nums">
-                        {formatCurrency(item.unitCost)}
-                      </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDeleteItem(item.id, item.name)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                        <InlineCostEdit itemId={item.id} currentCost={item.unitCost} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -228,69 +214,6 @@ export default function BomGeneratorPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Add Inventory Item Dialog */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Inventory Item</DialogTitle>
-            <DialogDescription>Add a new item to track in your inventory.</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4">
-            <div>
-              <Label htmlFor="inv-name">Name</Label>
-              <Input
-                id="inv-name"
-                value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
-                placeholder="e.g. M3 x 8mm bolt"
-                autoFocus
-              />
-            </div>
-            <div>
-              <Label htmlFor="inv-category">Category</Label>
-              <Input
-                id="inv-category"
-                value={newItemCategory}
-                onChange={(e) => setNewItemCategory(e.target.value)}
-                placeholder="e.g. Fasteners"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="inv-qty">Initial Quantity</Label>
-                <Input
-                  id="inv-qty"
-                  type="number"
-                  min="0"
-                  value={newItemQty}
-                  onChange={(e) => setNewItemQty(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="inv-cost">Unit Cost</Label>
-                <Input
-                  id="inv-cost"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newItemCost}
-                  onChange={(e) => setNewItemCost(e.target.value)}
-                  placeholder="Optional"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddItem} disabled={!newItemName.trim() || createItem.isPending}>
-              {createItem.isPending ? 'Adding...' : 'Add Item'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Section B: BOM Calculator */}
       <Card>
