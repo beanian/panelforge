@@ -24,6 +24,7 @@ import {
   useUpdateComponentType,
   type ComponentType,
 } from '@/hooks/use-component-types';
+import { BOARD_TYPE_OPTIONS } from '@/lib/constants';
 
 interface ComponentTypeFormProps {
   open: boolean;
@@ -49,6 +50,7 @@ export function ComponentTypeForm({
   const [pinMosfetRequired, setPinMosfetRequired] = useState<boolean[]>([]);
   const [defaultPinMode, setDefaultPinMode] = useState('INPUT');
   const [pwmRequired, setPwmRequired] = useState(false);
+  const [boardTypeAffinity, setBoardTypeAffinity] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -64,6 +66,7 @@ export function ComponentTypeForm({
         setPinMosfetRequired(Array.from({ length: count }, (_, i) => (componentType.pinMosfetRequired ?? [])[i] ?? false));
         setDefaultPinMode(componentType.defaultPinMode);
         setPwmRequired(componentType.pwmRequired);
+        setBoardTypeAffinity(componentType.boardTypeAffinity ?? null);
         setNotes(componentType.notes ?? '');
       } else {
         setName('');
@@ -75,6 +78,7 @@ export function ComponentTypeForm({
         setPinMosfetRequired([false]);
         setDefaultPinMode('INPUT');
         setPwmRequired(false);
+        setBoardTypeAffinity(null);
         setNotes('');
       }
     }
@@ -109,6 +113,7 @@ export function ComponentTypeForm({
       pinMosfetRequired: pinMosfetRequired.slice(0, defaultPinCount),
       defaultPinMode,
       pwmRequired,
+      boardTypeAffinity: boardTypeAffinity || null,
       notes: notes.trim() || null,
     };
 
@@ -275,6 +280,30 @@ export function ComponentTypeForm({
               className="size-4 rounded border-input accent-primary"
             />
             <Label htmlFor="ct-pwm">PWM Required</Label>
+          </div>
+
+          {/* Board Type Affinity */}
+          <div className="grid gap-2">
+            <Label htmlFor="ct-board-affinity">Restricted to Board Type</Label>
+            <Select
+              value={boardTypeAffinity ?? 'none'}
+              onValueChange={(v) => setBoardTypeAffinity(v === 'none' ? null : v)}
+            >
+              <SelectTrigger id="ct-board-affinity" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Any board</SelectItem>
+                {BOARD_TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label} only
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              If set, this component type can only be wired to boards of this type, and those boards will be reserved exclusively for this component type.
+            </p>
           </div>
 
           {/* Notes */}

@@ -8,3 +8,4 @@ export * from './mosfet';
 export * from './mobiflight';
 export * from './journal';
 export * from './aircraft';
+export * from './inventory';

@@ -117,6 +117,7 @@ model ComponentType {
   standbyCurrentMa   Int                 @default(0)
   mobiFlightTemplate Json?
   notes              String?
+  boardTypeAffinity  String?   // If set, pins for this type can ONLY go on boards with this boardType
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   componentInstances ComponentInstance[]
@@ -227,6 +228,20 @@ model PsuConfig {
   converterEfficiency Float    @default(0.87)
   notes               String?
   updatedAt           DateTime @updatedAt
+}
+
+// ─── Inventory ──────────────────────────────────────
+
+model InventoryItem {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  category        String   @default("general")
+  quantityOnHand  Int      @default(0)
+  unitCost        Float?
+  supplierUrl     String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // ─── Aircraft Cache ─────────────────────────────────────

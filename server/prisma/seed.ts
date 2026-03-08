@@ -133,6 +133,7 @@ async function main() {
       defaultPinMode: PinMode.OUTPUT,
       typicalCurrentMa: 20,
       standbyCurrentMa: 0,
+      boardTypeAffinity: 'Arduino Nano',
     },
     {
       name: 'Annunciator',
@@ -145,6 +146,7 @@ async function main() {
       defaultPinMode: PinMode.OUTPUT,
       typicalCurrentMa: 80,
       standbyCurrentMa: 0,
+      boardTypeAffinity: null,
     },
     {
       name: 'Toggle Switch',
@@ -157,6 +159,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      boardTypeAffinity: null,
     },
     {
       name: 'Two-Position Switch',
@@ -169,6 +172,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      boardTypeAffinity: null,
     },
     {
       name: 'Pushbutton',
@@ -181,6 +185,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      boardTypeAffinity: null,
     },
     {
       name: 'Illuminated Pushbutton',
@@ -193,6 +198,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 25,
       standbyCurrentMa: 25,
+      boardTypeAffinity: null,
     },
     {
       name: 'Potentiometer',
@@ -205,6 +211,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      boardTypeAffinity: null,
     },
     {
       name: 'Rotary Encoder',
@@ -217,6 +224,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      boardTypeAffinity: null,
     },
   ];
 
@@ -257,6 +265,24 @@ async function main() {
     },
   });
   console.log('  ✓ PSU Config');
+
+  // ─── Inventory Items ──────────────────────────────────
+  const inventoryItems = [
+    { name: 'Arduino Mega 2560', category: 'board', quantityOnHand: 0 },
+    { name: 'Arduino Nano', category: 'board', quantityOnHand: 0 },
+    { name: '8-Channel MOSFET Board', category: 'mosfet', quantityOnHand: 0 },
+    { name: 'X27 Stepper Motor', category: 'motor', quantityOnHand: 0 },
+    { name: '28BYJ-48 Stepper Motor', category: 'motor', quantityOnHand: 0 },
+  ];
+
+  for (const item of inventoryItems) {
+    await prisma.inventoryItem.upsert({
+      where: { name: item.name },
+      update: {},
+      create: item,
+    });
+  }
+  console.log(`  ✓ ${inventoryItems.length} inventory items`);
 
   console.log('\nSeed complete!');
 }

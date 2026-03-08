@@ -26,6 +26,7 @@ export const createComponentTypeSchema = z.object({
   standbyCurrentMa: z.number().int().min(0).default(0),
   mobiFlightTemplate: z.unknown().optional(),
   notes: z.string().nullable().optional(),
+  boardTypeAffinity: z.string().nullable().optional(),
 });
 
 export const updateComponentTypeSchema = createComponentTypeSchema.partial();
@@ -136,6 +137,23 @@ export const createMosfetBoardSchema = z.object({
 });
 
 export const updateMosfetBoardSchema = createMosfetBoardSchema.partial();
+
+// ─── Inventory ─────────────────────────────────────────
+
+export const createInventoryItemSchema = z.object({
+  name: z.string().min(1).max(100),
+  category: z.string().max(50).default('general'),
+  quantityOnHand: z.number().int().min(0).default(0),
+  unitCost: z.number().positive().nullable().optional(),
+  supplierUrl: z.string().url().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const updateInventoryItemSchema = createInventoryItemSchema.partial();
+
+export const adjustInventoryStockSchema = z.object({
+  delta: z.number().int(),
+});
 
 // ─── MobiFlight Mapping ─────────────────────────────────
 

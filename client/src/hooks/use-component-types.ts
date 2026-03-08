@@ -14,6 +14,7 @@ export interface ComponentType {
   pwmRequired: boolean;
   typicalCurrentMa: number;
   standbyCurrentMa: number;
+  boardTypeAffinity: string | null;
   mobiFlightTemplate: unknown | null;
   notes: string | null;
   _count?: { componentInstances: number };

@@ -1,357 +1,232 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../lib/errors';
 
-interface PinAllocation {
-  boardId: string;
-  boardName: string;
-  pins: string[];
-}
-
-interface ComponentAllocation {
-  componentInstanceId: string;
-  name: string;
-  typeName: string;
-  pinsNeeded: number;
-  pinMode: string;
-  pinType: string;
-  pwmRequired: boolean;
-  powerRail: string;
-  allocations: PinAllocation[];
+interface BomLineItem {
+  inventoryItemName: string;
+  category: string;
+  quantityRequired: number;
+  quantityInstalled: number;
+  quantityInStock: number;
+  quantityToOrder: number;
+  unitCost: number | null;
+  totalCost: number | null;
+  reasoning: string;
 }
 
 interface BomCalculateResult {
-  sectionId: string;
-  sectionName: string;
-  components: ComponentAllocation[];
-  newBoardsNeeded: number;
-  mosfetChannelsNeeded: number;
-  mosfetChannelsAvailable: number;
+  sectionId: string | null;
+  sectionName: string | null;
+  lineItems: BomLineItem[];
+  totalEstimatedCost: number | null;
+  warnings: string[];
 }
 
-interface BoardAvailability {
-  id: string;
-  name: string;
-  digitalPinCount: number;
-  analogPinCount: number;
-  pwmPins: number[];
-  usedDigitalPins: Set<string>;
-  usedAnalogPins: Set<string>;
-  usedPwmPins: Set<string>;
-}
+// Maps component type names to the inventory items they consume (per component)
+const HARDWARE_REQUIREMENTS: Record<string, { inventoryItem: string; quantityPerComponent: number }[]> = {
+  'Gauge': [
+    { inventoryItem: 'X27 Stepper Motor', quantityPerComponent: 1 },
+  ],
+};
 
-function getFreePins(board: BoardAvailability, pinType: string, pwmRequired: boolean, count: number): string[] {
-  const result: string[] = [];
-
-  if (pwmRequired) {
-    // Allocate from PWM-capable digital pins
-    for (const pwmPin of board.pwmPins) {
-      if (result.length >= count) break;
-      const pinStr = `D${pwmPin}`;
-      if (!board.usedDigitalPins.has(pinStr) && !board.usedPwmPins.has(pinStr)) {
-        result.push(pinStr);
-      }
-    }
-  } else if (pinType === 'ANALOG') {
-    for (let i = 0; i < board.analogPinCount; i++) {
-      if (result.length >= count) break;
-      const pinStr = `A${i}`;
-      if (!board.usedAnalogPins.has(pinStr)) {
-        result.push(pinStr);
-      }
-    }
-  } else {
-    // DIGITAL pins — skip PWM-capable pins to preserve them for PWM needs
-    for (let i = 0; i < board.digitalPinCount; i++) {
-      if (result.length >= count) break;
-      const pinStr = `D${i}`;
-      if (!board.usedDigitalPins.has(pinStr)) {
-        result.push(pinStr);
-      }
-    }
-  }
-
-  return result;
-}
+// Board capacity (usable pins, excluding reserved D0/D1)
+const BOARD_CAPACITY: Record<string, { digitalUsable: number; analogUsable: number }> = {
+  'Arduino Mega 2560': { digitalUsable: 52, analogUsable: 16 },
+  'Arduino Nano': { digitalUsable: 12, analogUsable: 8 },
+};
 
 export const bomService = {
-  async calculate(sectionId: string): Promise<BomCalculateResult> {
-    // Validate section exists
-    const section = await prisma.panelSection.findUnique({
-      where: { id: sectionId },
-      include: {
-        componentInstances: {
-          include: {
-            componentType: true,
-            pinAssignments: { select: { id: true } },
-          },
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-    });
+  async calculate(sectionId?: string): Promise<BomCalculateResult> {
+    // Load component instances (for section or all)
+    const where = sectionId ? { panelSectionId: sectionId } : {};
+    const section = sectionId
+      ? await prisma.panelSection.findUnique({ where: { id: sectionId } })
+      : null;
 
-    if (!section) {
+    if (sectionId && !section) {
       throw new AppError(404, 'Panel section not found');
     }
 
-    // Get all boards with their current pin assignments
+    const instances = await prisma.componentInstance.findMany({
+      where,
+      include: {
+        componentType: true,
+        pinAssignments: { select: { id: true, boardId: true } },
+      },
+    });
+
+    // Load existing boards with pin usage
     const boards = await prisma.board.findMany({
       include: {
-        pinAssignments: {
-          select: {
-            pinNumber: true,
-            pinType: true,
-            pinMode: true,
-          },
-        },
+        pinAssignments: { select: { pinNumber: true, pinType: true } },
       },
-      orderBy: { name: 'asc' },
     });
 
-    // Build board availability map
-    const boardAvailability: BoardAvailability[] = boards.map((board) => {
-      const usedDigitalPins = new Set<string>();
-      const usedAnalogPins = new Set<string>();
-      const usedPwmPins = new Set<string>();
-
-      for (const pin of board.pinAssignments) {
-        if (pin.pinType === 'DIGITAL') {
-          usedDigitalPins.add(pin.pinNumber);
-        }
-        if (pin.pinType === 'ANALOG') {
-          usedAnalogPins.add(pin.pinNumber);
-        }
-        if (pin.pinMode === 'PWM') {
-          usedPwmPins.add(pin.pinNumber);
-        }
-      }
-
-      return {
-        id: board.id,
-        name: board.name,
-        digitalPinCount: board.digitalPinCount,
-        analogPinCount: board.analogPinCount,
-        pwmPins: board.pwmPins,
-        usedDigitalPins,
-        usedAnalogPins,
-        usedPwmPins,
-      };
-    });
-
-    // Get MOSFET board availability
+    // Load MOSFET boards with channel usage
     const mosfetBoards = await prisma.mosfetBoard.findMany({
       include: {
-        channels: {
-          include: {
-            pinAssignment: { select: { id: true } },
-          },
-        },
+        channels: { include: { pinAssignment: { select: { id: true } } } },
       },
     });
 
-    let totalMosfetFree = 0;
-    for (const mb of mosfetBoards) {
-      totalMosfetFree += mb.channels.filter((ch) => ch.pinAssignment === null).length;
+    // Load inventory
+    const inventory = await prisma.inventoryItem.findMany();
+    const inventoryByName: Record<string, { quantityOnHand: number; unitCost: number | null }> = {};
+    for (const item of inventory) {
+      inventoryByName[item.name] = { quantityOnHand: item.quantityOnHand, unitCost: item.unitCost };
     }
 
-    // Calculate allocations for each component
-    let newBoardsNeeded = 0;
-    let mosfetChannelsNeeded = 0;
-    const componentAllocations: ComponentAllocation[] = [];
+    const lineItems: BomLineItem[] = [];
+    const warnings: string[] = [];
 
-    for (const instance of section.componentInstances) {
-      const ct = instance.componentType;
-
-      // Skip components that already have all their pins assigned
-      const existingPinCount = instance.pinAssignments.length;
-      const pinsStillNeeded = ct.defaultPinCount - existingPinCount;
-
-      if (pinsStillNeeded <= 0) {
-        componentAllocations.push({
-          componentInstanceId: instance.id,
-          name: instance.name,
+    // --- 1. Component-specific hardware (e.g., X27 steppers for gauges) ---
+    const typeGroups: Record<
+      string,
+      {
+        typeName: string;
+        count: number;
+        pinCount: number;
+        affinity: string | null;
+        mosfetPinsPerComponent: number;
+      }
+    > = {};
+    for (const inst of instances) {
+      const ct = inst.componentType;
+      if (!typeGroups[ct.id]) {
+        const mosfetPins = ((ct.pinMosfetRequired as boolean[]) ?? []).filter(Boolean).length;
+        typeGroups[ct.id] = {
           typeName: ct.name,
-          pinsNeeded: 0,
-          pinMode: ct.defaultPinMode,
-          // TODO: This only checks the first pin's type. Components with mixed
-          // pin types (e.g. ['DIGITAL', 'ANALOG']) will be treated as all-digital.
-          // Per-pin allocation would require restructuring ComponentAllocation.
-          pinType: ct.pinTypes?.[0] === 'ANALOG' ? 'ANALOG' : 'DIGITAL',
-          pwmRequired: ct.pwmRequired,
-          powerRail: (instance.powerRail ?? ct.pinPowerRails?.[0] ?? 'NONE') as string,
-          allocations: [],
+          count: 0,
+          pinCount: ct.defaultPinCount,
+          affinity: (ct as any).boardTypeAffinity ?? null,
+          mosfetPinsPerComponent: mosfetPins,
+        };
+      }
+      typeGroups[ct.id].count++;
+    }
+
+    for (const group of Object.values(typeGroups)) {
+      const reqs = HARDWARE_REQUIREMENTS[group.typeName] ?? [];
+      for (const req of reqs) {
+        const totalNeeded = group.count * req.quantityPerComponent;
+        const stock = inventoryByName[req.inventoryItem] ?? { quantityOnHand: 0, unitCost: null };
+        const toOrder = Math.max(0, totalNeeded - stock.quantityOnHand);
+        lineItems.push({
+          inventoryItemName: req.inventoryItem,
+          category: 'component',
+          quantityRequired: totalNeeded,
+          quantityInstalled: 0,
+          quantityInStock: stock.quantityOnHand,
+          quantityToOrder: toOrder,
+          unitCost: stock.unitCost,
+          totalCost: stock.unitCost != null ? toOrder * stock.unitCost : null,
+          reasoning: `${group.count} x ${group.typeName} @ ${req.quantityPerComponent} each`,
         });
-        continue;
       }
+    }
 
-      // Determine the pin type needed (first required type, default to DIGITAL)
-      // TODO: Same per-pin limitation as above — mixed-type components not yet supported.
-      const pinType = ct.pinTypes?.[0] === 'ANALOG' ? 'ANALOG' : 'DIGITAL';
-      const pwmRequired = ct.pwmRequired;
-      const powerRail = (instance.powerRail ?? ct.pinPowerRails?.[0] ?? 'NONE') as string;
+    // --- 2. Arduino boards needed ---
+    // Group pin requirements by board type affinity
+    const pinsByBoardType: Record<string, { totalPinsNeeded: number; totalPinsAssigned: number }> = {};
 
-      // Count MOSFET channels needed from per-pin config
-      const mosfetPinsForType = (ct.pinMosfetRequired ?? []).filter(Boolean).length;
-      if (mosfetPinsForType > 0) {
-        mosfetChannelsNeeded += mosfetPinsForType;
+    for (const inst of instances) {
+      const ct = inst.componentType;
+      const affinity = (ct as any).boardTypeAffinity ?? 'Arduino Mega 2560';
+      if (!pinsByBoardType[affinity]) {
+        pinsByBoardType[affinity] = { totalPinsNeeded: 0, totalPinsAssigned: 0 };
       }
+      pinsByBoardType[affinity].totalPinsNeeded += ct.defaultPinCount;
+      pinsByBoardType[affinity].totalPinsAssigned += inst.pinAssignments.length;
+    }
 
-      // Best-fit allocation: try existing boards first
-      let remainingPins = pinsStillNeeded;
-      const allocations: PinAllocation[] = [];
+    for (const [boardType, pinReq] of Object.entries(pinsByBoardType)) {
+      const capacity = BOARD_CAPACITY[boardType] ?? BOARD_CAPACITY['Arduino Mega 2560'];
+      const totalUsablePerBoard = capacity.digitalUsable + capacity.analogUsable;
 
-      for (const board of boardAvailability) {
-        if (remainingPins <= 0) break;
+      // Count installed boards of this type and their free pins
+      const installedBoards = boards.filter((b) => b.boardType === boardType);
+      const installedCount = installedBoards.length;
+      const totalFreePins = installedBoards.reduce((sum, b) => {
+        const usedPins = b.pinAssignments.length;
+        const totalPins = b.digitalPinCount + b.analogPinCount;
+        return sum + Math.max(0, totalPins - usedPins - 2); // -2 for reserved D0/D1
+      }, 0);
 
-        const freePins = getFreePins(board, pinType, pwmRequired, remainingPins);
+      const unassignedPins = pinReq.totalPinsNeeded - pinReq.totalPinsAssigned;
+      const pinsNeedingBoards = Math.max(0, unassignedPins - totalFreePins);
+      const newBoardsNeeded = pinsNeedingBoards > 0 ? Math.ceil(pinsNeedingBoards / totalUsablePerBoard) : 0;
+      const totalBoardsNeeded = installedCount + newBoardsNeeded;
 
-        if (freePins.length > 0) {
-          allocations.push({
-            boardId: board.id,
-            boardName: board.name,
-            pins: freePins,
-          });
+      const stock = inventoryByName[boardType] ?? { quantityOnHand: 0, unitCost: null };
+      const toOrder = Math.max(0, newBoardsNeeded - stock.quantityOnHand);
 
-          // Mark these pins as used in the availability map
-          for (const pin of freePins) {
-            if (pwmRequired) {
-              board.usedPwmPins.add(pin);
-              board.usedDigitalPins.add(pin);
-            } else if (pin.startsWith('A')) {
-              board.usedAnalogPins.add(pin);
-            } else {
-              board.usedDigitalPins.add(pin);
-            }
-          }
-
-          remainingPins -= freePins.length;
-        }
-      }
-
-      // If we still need more pins, we need new boards
-      if (remainingPins > 0) {
-        newBoardsNeeded += Math.ceil(remainingPins / (pinType === 'ANALOG' ? 16 : 54));
-      }
-
-      componentAllocations.push({
-        componentInstanceId: instance.id,
-        name: instance.name,
-        typeName: ct.name,
-        pinsNeeded: pinsStillNeeded,
-        pinMode: ct.defaultPinMode,
-        pinType,
-        pwmRequired,
-        powerRail,
-        allocations,
+      lineItems.push({
+        inventoryItemName: boardType,
+        category: 'board',
+        quantityRequired: totalBoardsNeeded,
+        quantityInstalled: installedCount,
+        quantityInStock: stock.quantityOnHand,
+        quantityToOrder: toOrder,
+        unitCost: stock.unitCost,
+        totalCost: stock.unitCost != null ? toOrder * stock.unitCost : null,
+        reasoning: `${pinReq.totalPinsNeeded} pins needed (${pinReq.totalPinsAssigned} assigned, ${totalFreePins} free on ${installedCount} installed board${installedCount !== 1 ? 's' : ''})`,
       });
     }
 
-    return {
-      sectionId: section.id,
-      sectionName: section.name,
-      components: componentAllocations,
-      newBoardsNeeded,
-      mosfetChannelsNeeded,
-      mosfetChannelsAvailable: totalMosfetFree,
-    };
-  },
-
-  async apply(bomResult: BomCalculateResult) {
-    // Validate that the section still exists
-    const section = await prisma.panelSection.findUnique({
-      where: { id: bomResult.sectionId },
-    });
-
-    if (!section) {
-      throw new AppError(404, 'Panel section not found');
+    // --- 3. MOSFET boards needed ---
+    let totalMosfetChannelsNeeded = 0;
+    for (const group of Object.values(typeGroups)) {
+      totalMosfetChannelsNeeded += group.count * group.mosfetPinsPerComponent;
     }
 
-    const createdAssignments: Array<{
-      componentInstanceId: string;
-      componentName: string;
-      boardId: string;
-      boardName: string;
-      pinNumber: string;
-    }> = [];
+    if (totalMosfetChannelsNeeded > 0) {
+      const installedMosfetBoards = mosfetBoards.length;
+      const totalMosfetChannels = mosfetBoards.reduce((sum, mb) => sum + mb.channels.length, 0);
+      const usedMosfetChannels = mosfetBoards.reduce(
+        (sum, mb) => sum + mb.channels.filter((ch) => ch.pinAssignment !== null).length,
+        0,
+      );
+      const freeMosfetChannels = totalMosfetChannels - usedMosfetChannels;
+      const additionalChannelsNeeded = Math.max(
+        0,
+        totalMosfetChannelsNeeded - usedMosfetChannels - freeMosfetChannels,
+      );
+      const newMosfetBoardsNeeded = additionalChannelsNeeded > 0 ? Math.ceil(additionalChannelsNeeded / 8) : 0;
 
-    await prisma.$transaction(async (tx) => {
-      for (const component of bomResult.components) {
-        if (component.pinsNeeded === 0 || component.allocations.length === 0) {
-          continue;
-        }
+      const stock = inventoryByName['8-Channel MOSFET Board'] ?? { quantityOnHand: 0, unitCost: null };
+      const toOrder = Math.max(0, newMosfetBoardsNeeded - stock.quantityOnHand);
 
-        // Verify the component instance still exists
-        const instance = await tx.componentInstance.findUnique({
-          where: { id: component.componentInstanceId },
-        });
+      lineItems.push({
+        inventoryItemName: '8-Channel MOSFET Board',
+        category: 'mosfet',
+        quantityRequired: installedMosfetBoards + newMosfetBoardsNeeded,
+        quantityInstalled: installedMosfetBoards,
+        quantityInStock: stock.quantityOnHand,
+        quantityToOrder: toOrder,
+        unitCost: stock.unitCost,
+        totalCost: stock.unitCost != null ? toOrder * stock.unitCost : null,
+        reasoning: `${totalMosfetChannelsNeeded} channels needed (${usedMosfetChannels} used, ${freeMosfetChannels} free across ${installedMosfetBoards} board${installedMosfetBoards !== 1 ? 's' : ''})`,
+      });
+    }
 
-        if (!instance) {
-          throw new AppError(
-            400,
-            `Component instance "${component.name}" (${component.componentInstanceId}) no longer exists.`,
-          );
-        }
+    // --- Warnings ---
+    const unassignedComponents = instances.filter((i) => i.pinAssignments.length === 0);
+    if (unassignedComponents.length > 0) {
+      warnings.push(
+        `${unassignedComponents.length} component${unassignedComponents.length !== 1 ? 's have' : ' has'} no pin assignments yet`,
+      );
+    }
 
-        for (const allocation of component.allocations) {
-          // Verify board exists
-          const board = await tx.board.findUnique({
-            where: { id: allocation.boardId },
-          });
-
-          if (!board) {
-            throw new AppError(
-              400,
-              `Board "${allocation.boardName}" (${allocation.boardId}) no longer exists.`,
-            );
-          }
-
-          for (const pinNumber of allocation.pins) {
-            // Check pin is not already taken (race condition guard)
-            const existing = await tx.pinAssignment.findUnique({
-              where: {
-                boardId_pinNumber: {
-                  boardId: allocation.boardId,
-                  pinNumber,
-                },
-              },
-            });
-
-            if (existing) {
-              throw new AppError(
-                409,
-                `Pin ${pinNumber} on board "${allocation.boardName}" is already assigned. Re-run calculate to get fresh allocations.`,
-              );
-            }
-
-            await tx.pinAssignment.create({
-              data: {
-                boardId: allocation.boardId,
-                pinNumber,
-                pinType: pinNumber.startsWith('A') ? 'ANALOG' : 'DIGITAL',
-                pinMode: component.pwmRequired ? 'PWM' : component.pinMode as any,
-                componentInstanceId: component.componentInstanceId,
-                powerRail: component.powerRail as any,
-                wiringStatus: 'PLANNED',
-                description: `Auto-assigned for ${component.name}`,
-              },
-            });
-
-            createdAssignments.push({
-              componentInstanceId: component.componentInstanceId,
-              componentName: component.name,
-              boardId: allocation.boardId,
-              boardName: allocation.boardName,
-              pinNumber,
-            });
-          }
-        }
-      }
-    });
+    const totalEstimatedCost = lineItems.reduce((sum, item) => {
+      if (item.totalCost != null) return sum + item.totalCost;
+      return sum;
+    }, 0);
 
     return {
-      sectionId: bomResult.sectionId,
-      sectionName: bomResult.sectionName,
-      totalPinsCreated: createdAssignments.length,
-      assignments: createdAssignments,
+      sectionId: sectionId ?? null,
+      sectionName: section?.name ?? null,
+      lineItems,
+      totalEstimatedCost: totalEstimatedCost > 0 ? totalEstimatedCost : null,
+      warnings,
     };
   },
 };

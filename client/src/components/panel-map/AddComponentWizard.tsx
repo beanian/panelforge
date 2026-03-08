@@ -139,6 +139,20 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   }, [open, defaults, defaultPanelSectionId, componentTypes]);
 
   const selectedType = componentTypes?.find((ct) => ct.id === componentTypeId);
+
+  const filteredBoards = useMemo(() => {
+    if (!boards) return [];
+    if (selectedType?.boardTypeAffinity) {
+      // Only show boards matching this type's affinity
+      return boards.filter((b) => b.boardType === selectedType.boardTypeAffinity);
+    }
+    // For non-affinity types, exclude boards reserved for affinity types
+    const affinityBoardTypes = new Set(
+      componentTypes?.filter((ct) => ct.boardTypeAffinity).map((ct) => ct.boardTypeAffinity!) ?? []
+    );
+    return boards.filter((b) => !affinityBoardTypes.has(b.boardType));
+  }, [boards, selectedType, componentTypes]);
+
   const mosfetPinIndices = useMemo(() => {
     if (!selectedType?.pinMosfetRequired) return [];
     return selectedType.pinMosfetRequired
@@ -439,7 +453,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                   <SelectValue placeholder="Select board..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {boards?.map((b) => (
+                  {filteredBoards.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
                       {b.name} ({b.pinAvailability.digitalFree}D / {b.pinAvailability.analogFree}A free)
                     </SelectItem>
@@ -530,9 +544,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
             )}
 
             <p className="text-xs text-muted-foreground">
-              {mosfetRequired
-                ? 'Pin wiring is required — the MOSFET channel will be linked to this pin.'
-                : 'Pin wiring is optional — you can configure this later.'}
+              Pin wiring is optional — you can configure this later in the Pin Manager.
             </p>
           </div>
         )}
@@ -632,10 +644,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                 )}
                 <Button
                   onClick={() => setStep(step + 1)}
-                  disabled={
-                    (step === 0 && !canProceedStep0) ||
-                    (step === 1 && mosfetRequired && !hasPinConfig)
-                  }
+                  disabled={step === 0 && !canProceedStep0}
                 >
                   Next
                 </Button>

@@ -13,6 +13,7 @@ export interface ComponentType {
   pwmRequired: boolean;
   mobiFlightTemplate: unknown | null;
   notes: string | null;
+  boardTypeAffinity: string | null;
   createdAt: string;
   updatedAt: string;
 }

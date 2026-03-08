@@ -16,4 +16,7 @@ export {
   createJournalEntrySchema,
   updateJournalEntrySchema,
   upsertMappingSchema,
+  createInventoryItemSchema,
+  updateInventoryItemSchema,
+  adjustInventoryStockSchema,
 } from '../../../packages/shared/src/validators';

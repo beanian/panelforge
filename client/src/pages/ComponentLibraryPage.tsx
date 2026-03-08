@@ -113,6 +113,12 @@ function ComponentTypeCard({
               PWM
             </Badge>
           )}
+
+          {componentType.boardTypeAffinity && (
+            <Badge variant="outline" className="border-cyan-400 text-cyan-500">
+              {componentType.boardTypeAffinity} only
+            </Badge>
+          )}
         </div>
 
         {/* Usage count */}
