@@ -192,16 +192,24 @@ export const bomService = {
     if (totalMosfetChannelsNeeded > 0) {
       const installedMosfetBoards = mosfetBoards.length;
       const totalMosfetChannels = mosfetBoards.reduce((sum, mb) => sum + mb.channels.length, 0);
-      const usedMosfetChannels = mosfetBoards.reduce(
+      const usedMosfetChannelsGlobal = mosfetBoards.reduce(
         (sum, mb) => sum + mb.channels.filter((ch) => ch.pinAssignment !== null).length,
         0,
       );
-      const freeMosfetChannels = totalMosfetChannels - usedMosfetChannels;
-      const additionalChannelsNeeded = Math.max(
+      const freeMosfetChannels = totalMosfetChannels - usedMosfetChannelsGlobal;
+
+      // Count MOSFET channels already assigned to THIS section's components
+      const sectionPinIds = new Set(instances.flatMap((i) => i.pinAssignments.map((p) => p.id)));
+      const sectionMosfetChannelsAssigned = mosfetBoards.reduce(
+        (sum, mb) => sum + mb.channels.filter((ch) => ch.pinAssignment && sectionPinIds.has(ch.pinAssignment.id)).length,
         0,
-        totalMosfetChannelsNeeded - usedMosfetChannels - freeMosfetChannels,
       );
-      const newMosfetBoardsNeeded = additionalChannelsNeeded > 0 ? Math.ceil(additionalChannelsNeeded / 8) : 0;
+
+      // How many more channels does this section need beyond what's already assigned?
+      const unassignedChannelsNeeded = Math.max(0, totalMosfetChannelsNeeded - sectionMosfetChannelsAssigned);
+      const channelsNeedingNewBoards = Math.max(0, unassignedChannelsNeeded - freeMosfetChannels);
+      const newMosfetBoardsNeeded = channelsNeedingNewBoards > 0 ? Math.ceil(channelsNeedingNewBoards / 8) : 0;
+      const totalBoardsRequired = installedMosfetBoards + newMosfetBoardsNeeded;
 
       const stock = findInventoryItem('MOSFET', 'mosfet');
       const toOrder = Math.max(0, newMosfetBoardsNeeded - stock.quantityOnHand);
@@ -209,13 +217,13 @@ export const bomService = {
       lineItems.push({
         inventoryItemName: stock.name,
         category: 'mosfet',
-        quantityRequired: installedMosfetBoards + newMosfetBoardsNeeded,
+        quantityRequired: totalBoardsRequired,
         quantityInstalled: installedMosfetBoards,
         quantityInStock: stock.quantityOnHand,
         quantityToOrder: toOrder,
         unitCost: stock.unitCost,
         totalCost: stock.unitCost != null ? toOrder * stock.unitCost : null,
-        reasoning: `${totalMosfetChannelsNeeded} channels needed (${usedMosfetChannels} used, ${freeMosfetChannels} free across ${installedMosfetBoards} board${installedMosfetBoards !== 1 ? 's' : ''})`,
+        reasoning: `${totalMosfetChannelsNeeded} channels needed (${sectionMosfetChannelsAssigned} assigned, ${freeMosfetChannels} free across ${installedMosfetBoards} board${installedMosfetBoards !== 1 ? 's' : ''})`,
       });
     }
 
