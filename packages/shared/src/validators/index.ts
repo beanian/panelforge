@@ -63,7 +63,7 @@ export const updateComponentInstanceSchema = z.object({
 
 export const createPinAssignmentSchema = z.object({
   boardId: z.string().min(1),
-  pinNumber: z.string().regex(/^(D\d{1,2}|A\d{1,2})$/, 'Pin must be D0-D53 or A0-A15'),
+  pinNumber: z.string().regex(/^(D\d{1,2}|A\d{1,2})$/, 'Pin must be Dn or An format'),
   pinType: z.enum(['DIGITAL', 'ANALOG']),
   pinMode: z.enum(['INPUT', 'OUTPUT', 'PWM']).default('INPUT'),
   componentInstanceId: z.string().nullable().optional(),

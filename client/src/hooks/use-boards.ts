@@ -28,7 +28,7 @@ export function useBoards() {
 export function useCreateBoard() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { name: string; notes?: string }) => api.post('/boards', data),
+    mutationFn: (data: { name: string; boardType?: string; notes?: string }) => api.post('/boards', data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['boards'] }),
   });
 }

@@ -62,7 +62,7 @@ import { useDeleteComponentInstance } from '@/hooks/use-component-instances';
 import { usePanelSections } from '@/hooks/use-panel-sections';
 import { useDebounce } from '@/hooks/use-debounce';
 
-import { POWER_RAIL_LABELS } from '@/lib/constants';
+import { POWER_RAIL_LABELS, BOARD_TYPE_OPTIONS } from '@/lib/constants';
 
 const POWER_RAIL_BADGE_COLORS: Record<string, string> = {
   FIVE_V: 'bg-green-500 text-white',
@@ -108,17 +108,21 @@ function CapacityBar({
 function AddBoardDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [boardType, setBoardType] = useState('Arduino Mega 2560');
   const createBoard = useCreateBoard();
+
+  const selectedOption = BOARD_TYPE_OPTIONS.find((o) => o.value === boardType);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     createBoard.mutate(
-      { name: name.trim() },
+      { name: name.trim(), boardType },
       {
         onSuccess: () => {
           toast.success(`Board "${name.trim()}" created`);
           setName('');
+          setBoardType('Arduino Mega 2560');
           setOpen(false);
         },
         onError: (err) => {
@@ -139,22 +143,44 @@ function AddBoardDialog() {
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Add Arduino Mega Board</DialogTitle>
+            <DialogTitle>Add Arduino Board</DialogTitle>
             <DialogDescription>
-              Create a new Arduino Mega 2560 board entry. Pins will be
-              automatically configured with 54 digital and 16 analog pins.
+              Create a new board entry. Pins will be automatically configured
+              based on the selected board type.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label htmlFor="board-name">Board Name</Label>
-            <Input
-              id="board-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder='e.g. "Mega #1 — Overhead Left"'
-              className="mt-1.5"
-              autoFocus
-            />
+          <div className="py-4 space-y-3">
+            <div>
+              <Label htmlFor="board-type">Board Type</Label>
+              <Select value={boardType} onValueChange={setBoardType}>
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BOARD_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedOption && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {selectedOption.description}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="board-name">Board Name</Label>
+              <Input
+                id="board-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={boardType === 'Arduino Nano' ? 'e.g. "Nano — Stepper Gauges"' : 'e.g. "Mega #1 — Overhead Left"'}
+                className="mt-1.5"
+                autoFocus
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -594,7 +620,7 @@ export default function PinManagerPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pin-Out Manager</h1>
           <p className="text-sm text-muted-foreground">
-            Manage Arduino Mega pin assignments across boards
+            Manage Arduino pin assignments across boards
           </p>
         </div>
         <div className="flex gap-2">
@@ -638,7 +664,7 @@ export default function PinManagerPage() {
           <Cpu className="mx-auto size-10 text-muted-foreground/50 mb-3" />
           <h3 className="font-semibold mb-1">No boards yet</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Add your first Arduino Mega board to start managing pin assignments.
+            Add your first Arduino board to start managing pin assignments.
           </p>
           <AddBoardDialog />
         </div>

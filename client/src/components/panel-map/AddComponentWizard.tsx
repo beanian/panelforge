@@ -27,7 +27,7 @@ import { useCreateComponentInstance } from '@/hooks/use-component-instances';
 import { useCreatePinAssignment, usePinAssignments } from '@/hooks/use-pin-assignments';
 import { useUpdatePinAssignment } from '@/hooks/use-pin-assignments';
 import { Input } from '@/components/ui/input';
-import { MEGA_2560 } from '@/lib/constants';
+import { BOARD_CONFIGS, MEGA_2560 } from '@/lib/constants';
 import type { BoundingBox } from './PanelMap';
 
 const POWER_RAIL_LABELS: Record<string, string> = {
@@ -149,6 +149,13 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
   const mosfetRequired = showMosfetStep;
   const totalSteps = showMosfetStep ? 3 : 2;
 
+  // Resolve board-specific pin config
+  const selectedBoard = boards?.find((b) => b.id === boardId);
+  const boardConfig = useMemo(() => {
+    if (!selectedBoard) return MEGA_2560;
+    return BOARD_CONFIGS[selectedBoard.boardType] ?? MEGA_2560;
+  }, [selectedBoard]);
+
   // Compute available pins for the selected board
   const usedPinNumbers = useMemo(() => {
     if (!usedPins) return new Set<string>();
@@ -157,16 +164,16 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
   // Also exclude pins already selected in other rows of this wizard
   const availableDigitalPins = useMemo(() => {
-    return MEGA_2560.digitalPins.filter(
-      (p) => !MEGA_2560.reservedPins.includes(p) && !usedPinNumbers.has(p),
+    return boardConfig.digitalPins.filter(
+      (p) => !boardConfig.reservedPins.includes(p) && !usedPinNumbers.has(p),
     );
-  }, [usedPinNumbers]);
+  }, [usedPinNumbers, boardConfig]);
 
   const availableAnalogPins = useMemo(() => {
-    return MEGA_2560.analogPins.filter((p) => !usedPinNumbers.has(p));
-  }, [usedPinNumbers]);
+    return boardConfig.analogPins.filter((p) => !usedPinNumbers.has(p));
+  }, [usedPinNumbers, boardConfig]);
 
-  const pwmPinSet = useMemo(() => new Set(MEGA_2560.pwmPins), []);
+  const pwmPinSet = useMemo(() => new Set(boardConfig.pwmPins), [boardConfig]);
 
   // Get available pins for a specific row (excluding other rows' selections)
   function getAvailablePinsForRow(index: number, pinType: string, pinTypeConfig: string) {

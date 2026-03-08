@@ -69,7 +69,21 @@ export const boardService = {
   },
 
   async create(data: { name: string; boardType?: string; notes?: string }) {
-    return prisma.board.create({ data });
+    const boardType = data.boardType ?? 'Arduino Mega 2560';
+    const boardDefaults: Record<string, { digitalPinCount: number; analogPinCount: number; pwmPins: number[] }> = {
+      'Arduino Mega 2560': { digitalPinCount: 54, analogPinCount: 16, pwmPins: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] },
+      'Arduino Nano': { digitalPinCount: 14, analogPinCount: 8, pwmPins: [3, 5, 6, 9, 10, 11] },
+    };
+    const defaults = boardDefaults[boardType] ?? boardDefaults['Arduino Mega 2560'];
+    return prisma.board.create({
+      data: {
+        ...data,
+        boardType,
+        digitalPinCount: defaults.digitalPinCount,
+        analogPinCount: defaults.analogPinCount,
+        pwmPins: defaults.pwmPins,
+      },
+    });
   },
 
   async update(id: string, data: { name?: string; boardType?: string; notes?: string }) {
