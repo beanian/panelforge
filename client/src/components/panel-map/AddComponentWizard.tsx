@@ -160,7 +160,6 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
       .filter((i) => i >= 0);
   }, [selectedType]);
   const showMosfetStep = mosfetPinIndices.length > 0;
-  const mosfetRequired = showMosfetStep;
   const totalSteps = showMosfetStep ? 3 : 2;
 
   // Resolve board-specific pin config
@@ -289,8 +288,6 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
 
   const canProceedStep0 = name.trim() && componentTypeId && panelSectionId;
   const hasPinConfig = boardId && pins.some((p) => p.pinNumber);
-  const mosfetReady = !mosfetRequired || mosfetAssignments.every((a) => a.mosfetChannelId !== '');
-  const pinReady = !mosfetRequired || hasPinConfig;
 
   async function handleCreate() {
     if (!canProceedStep0) return;
@@ -553,7 +550,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
         {step === 2 && showMosfetStep && (
           <div className="flex flex-col gap-4">
             <p className="text-xs text-muted-foreground">
-              Assign a MOSFET board and channel for each pin that requires one.
+              Assign a MOSFET board and channel for each pin that requires one. This is optional — the BOM calculator will tell you how many MOSFET boards you need.
             </p>
 
             {mosfetPinIndices.map((pinIdx, ai) => {
@@ -633,7 +630,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
           <div className="flex gap-2">
             {step < totalSteps - 1 ? (
               <>
-                {step > 0 && !mosfetRequired && (
+                {step > 0 && (
                   <Button
                     variant="outline"
                     onClick={() => setStep(totalSteps - 1)}
@@ -656,7 +653,7 @@ export function AddComponentWizard({ open, onOpenChange, boundingBox, defaultPan
                 </Button>
                 <Button
                   onClick={handleCreate}
-                  disabled={!canProceedStep0 || !mosfetReady || !pinReady || submitting}
+                  disabled={!canProceedStep0 || submitting}
                 >
                   {submitting ? 'Creating...' : 'Create Component'}
                 </Button>
