@@ -11,12 +11,23 @@ const REQUIRED_INFRASTRUCTURE: { name: string; category: string }[] = [
 export const inventoryService = {
   /** Ensure all required infrastructure items exist in the database */
   async ensureInfrastructureItems() {
-    for (const item of REQUIRED_INFRASTRUCTURE) {
-      await prisma.inventoryItem.upsert({
-        where: { name: item.name },
-        update: {},
-        create: { name: item.name, category: item.category, quantityOnHand: 0 },
+    const existing = await prisma.inventoryItem.findMany();
+    for (const req of REQUIRED_INFRASTRUCTURE) {
+      // Check if an item already covers this requirement (exact name or partial match in same category)
+      const reqLower = req.name.toLowerCase();
+      const alreadyExists = existing.some((item) => {
+        if (item.name === req.name) return true;
+        const itemLower = item.name.toLowerCase();
+        return item.category === req.category &&
+          (reqLower.includes(itemLower) || itemLower.includes(reqLower));
       });
+      if (!alreadyExists) {
+        await prisma.inventoryItem.upsert({
+          where: { name: req.name },
+          update: {},
+          create: { name: req.name, category: req.category, quantityOnHand: 0 },
+        });
+      }
     }
   },
 
@@ -61,7 +72,12 @@ export const inventoryService = {
   async remove(id: string) {
     const item = await prisma.inventoryItem.findUnique({ where: { id } });
     if (!item) throw new AppError(404, 'Inventory item not found');
-    const isInfrastructure = REQUIRED_INFRASTRUCTURE.some((r) => r.name === item.name);
+    const itemLower = item.name.toLowerCase();
+    const isInfrastructure = REQUIRED_INFRASTRUCTURE.some((r) => {
+      const reqLower = r.name.toLowerCase();
+      return item.name === r.name || (item.category === r.category &&
+        (reqLower.includes(itemLower) || itemLower.includes(reqLower)));
+    });
     if (isInfrastructure) {
       throw new AppError(400, `Cannot delete "${item.name}" — it is a required infrastructure item`);
     }
