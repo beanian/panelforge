@@ -117,6 +117,7 @@ model ComponentType {
   standbyCurrentMa   Int                 @default(0)
   mobiFlightTemplate Json?
   notes              String?
+  requiresHardware   Boolean             @default(false)
   boardTypeAffinity  String?   // If set, pins for this type can ONLY go on boards with this boardType
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt

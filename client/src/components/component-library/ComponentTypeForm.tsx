@@ -50,6 +50,7 @@ export function ComponentTypeForm({
   const [pinMosfetRequired, setPinMosfetRequired] = useState<boolean[]>([]);
   const [defaultPinMode, setDefaultPinMode] = useState('INPUT');
   const [pwmRequired, setPwmRequired] = useState(false);
+  const [requiresHardware, setRequiresHardware] = useState(false);
   const [boardTypeAffinity, setBoardTypeAffinity] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
 
@@ -66,6 +67,7 @@ export function ComponentTypeForm({
         setPinMosfetRequired(Array.from({ length: count }, (_, i) => (componentType.pinMosfetRequired ?? [])[i] ?? false));
         setDefaultPinMode(componentType.defaultPinMode);
         setPwmRequired(componentType.pwmRequired);
+        setRequiresHardware(componentType.requiresHardware ?? false);
         setBoardTypeAffinity(componentType.boardTypeAffinity ?? null);
         setNotes(componentType.notes ?? '');
       } else {
@@ -78,6 +80,7 @@ export function ComponentTypeForm({
         setPinMosfetRequired([false]);
         setDefaultPinMode('INPUT');
         setPwmRequired(false);
+        setRequiresHardware(false);
         setBoardTypeAffinity(null);
         setNotes('');
       }
@@ -113,6 +116,7 @@ export function ComponentTypeForm({
       pinMosfetRequired: pinMosfetRequired.slice(0, defaultPinCount),
       defaultPinMode,
       pwmRequired,
+      requiresHardware,
       boardTypeAffinity: boardTypeAffinity || null,
       notes: notes.trim() || null,
     };
@@ -281,6 +285,21 @@ export function ComponentTypeForm({
             />
             <Label htmlFor="ct-pwm">PWM Required</Label>
           </div>
+
+          {/* Requires Hardware */}
+          <div className="flex items-center gap-2">
+            <input
+              id="ct-requires-hardware"
+              type="checkbox"
+              checked={requiresHardware}
+              onChange={(e) => setRequiresHardware(e.target.checked)}
+              className="size-4 rounded border-input accent-primary"
+            />
+            <Label htmlFor="ct-requires-hardware">Requires Hardware</Label>
+          </div>
+          <p className="text-xs text-muted-foreground -mt-2">
+            When enabled, each instance of this component type will appear as an item to order in the BOM calculator.
+          </p>
 
           {/* Board Type Affinity */}
           <div className="grid gap-2">

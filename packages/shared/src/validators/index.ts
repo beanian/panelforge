@@ -26,6 +26,7 @@ export const createComponentTypeSchema = z.object({
   standbyCurrentMa: z.number().int().min(0).default(0),
   mobiFlightTemplate: z.unknown().optional(),
   notes: z.string().nullable().optional(),
+  requiresHardware: z.boolean().default(false),
   boardTypeAffinity: z.string().nullable().optional(),
 });
 

@@ -133,6 +133,7 @@ async function main() {
       defaultPinMode: PinMode.OUTPUT,
       typicalCurrentMa: 20,
       standbyCurrentMa: 0,
+      requiresHardware: true,
       boardTypeAffinity: 'Arduino Nano',
     },
     {
@@ -146,6 +147,7 @@ async function main() {
       defaultPinMode: PinMode.OUTPUT,
       typicalCurrentMa: 80,
       standbyCurrentMa: 0,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
     {
@@ -159,6 +161,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
     {
@@ -172,6 +175,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
     {
@@ -185,6 +189,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
     {
@@ -198,6 +203,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 25,
       standbyCurrentMa: 25,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
     {
@@ -211,6 +217,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
     {
@@ -224,6 +231,7 @@ async function main() {
       defaultPinMode: PinMode.INPUT,
       typicalCurrentMa: 0,
       standbyCurrentMa: 0,
+      requiresHardware: false,
       boardTypeAffinity: null,
     },
   ];
@@ -236,6 +244,19 @@ async function main() {
     });
   }
   console.log(`  ✓ ${componentTypes.length} component types`);
+
+  // Create inventory items for component types that require hardware
+  const hardwareTypes = componentTypes.filter((ct) => ct.requiresHardware);
+  for (const ct of hardwareTypes) {
+    await prisma.inventoryItem.upsert({
+      where: { name: ct.name },
+      update: {},
+      create: { name: ct.name, category: 'component', quantityOnHand: 0 },
+    });
+  }
+  if (hardwareTypes.length > 0) {
+    console.log(`  ✓ ${hardwareTypes.length} component inventory items`);
+  }
 
   // ─── Board Alpha ───────────────────────────────────────
   await prisma.board.upsert({
@@ -271,8 +292,6 @@ async function main() {
     { name: 'Arduino Mega 2560', category: 'board', quantityOnHand: 0 },
     { name: 'Arduino Nano', category: 'board', quantityOnHand: 0 },
     { name: '8-Channel MOSFET Board', category: 'mosfet', quantityOnHand: 0 },
-    { name: 'X27 Stepper Motor', category: 'motor', quantityOnHand: 0 },
-    { name: '28BYJ-48 Stepper Motor', category: 'motor', quantityOnHand: 0 },
   ];
 
   for (const item of inventoryItems) {

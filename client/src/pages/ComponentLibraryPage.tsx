@@ -114,6 +114,12 @@ function ComponentTypeCard({
             </Badge>
           )}
 
+          {componentType.requiresHardware && (
+            <Badge variant="outline" className="border-green-400 text-green-500">
+              Hardware
+            </Badge>
+          )}
+
           {componentType.boardTypeAffinity && (
             <Badge variant="outline" className="border-cyan-400 text-cyan-500">
               {componentType.boardTypeAffinity} only

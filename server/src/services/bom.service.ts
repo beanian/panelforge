@@ -21,13 +21,6 @@ interface BomCalculateResult {
   warnings: string[];
 }
 
-// Maps component type names to the inventory items they consume (per component)
-const HARDWARE_REQUIREMENTS: Record<string, { inventoryItem: string; quantityPerComponent: number }[]> = {
-  'Gauge': [
-    { inventoryItem: 'X27 Stepper Motor', quantityPerComponent: 1 },
-  ],
-};
-
 // Board capacity (usable pins, excluding reserved D0/D1)
 const BOARD_CAPACITY: Record<string, { digitalUsable: number; analogUsable: number }> = {
   'Arduino Mega 2560': { digitalUsable: 52, analogUsable: 16 },
@@ -78,7 +71,7 @@ export const bomService = {
     const lineItems: BomLineItem[] = [];
     const warnings: string[] = [];
 
-    // --- 1. Component-specific hardware (e.g., X27 steppers for gauges) ---
+    // --- 1. Component-specific hardware (types with requiresHardware) ---
     const typeGroups: Record<
       string,
       {
@@ -87,6 +80,7 @@ export const bomService = {
         pinCount: number;
         affinity: string | null;
         mosfetPinsPerComponent: number;
+        requiresHardware: boolean;
       }
     > = {};
     for (const inst of instances) {
@@ -99,29 +93,28 @@ export const bomService = {
           pinCount: ct.defaultPinCount,
           affinity: (ct as any).boardTypeAffinity ?? null,
           mosfetPinsPerComponent: mosfetPins,
+          requiresHardware: ct.requiresHardware,
         };
       }
       typeGroups[ct.id].count++;
     }
 
     for (const group of Object.values(typeGroups)) {
-      const reqs = HARDWARE_REQUIREMENTS[group.typeName] ?? [];
-      for (const req of reqs) {
-        const totalNeeded = group.count * req.quantityPerComponent;
-        const stock = inventoryByName[req.inventoryItem] ?? { quantityOnHand: 0, unitCost: null };
-        const toOrder = Math.max(0, totalNeeded - stock.quantityOnHand);
-        lineItems.push({
-          inventoryItemName: req.inventoryItem,
-          category: 'component',
-          quantityRequired: totalNeeded,
-          quantityInstalled: 0,
-          quantityInStock: stock.quantityOnHand,
-          quantityToOrder: toOrder,
-          unitCost: stock.unitCost,
-          totalCost: stock.unitCost != null ? toOrder * stock.unitCost : null,
-          reasoning: `${group.count} x ${group.typeName} @ ${req.quantityPerComponent} each`,
-        });
-      }
+      if (!group.requiresHardware) continue;
+      const totalNeeded = group.count;
+      const stock = inventoryByName[group.typeName] ?? { quantityOnHand: 0, unitCost: null };
+      const toOrder = Math.max(0, totalNeeded - stock.quantityOnHand);
+      lineItems.push({
+        inventoryItemName: group.typeName,
+        category: 'component',
+        quantityRequired: totalNeeded,
+        quantityInstalled: 0,
+        quantityInStock: stock.quantityOnHand,
+        quantityToOrder: toOrder,
+        unitCost: stock.unitCost,
+        totalCost: stock.unitCost != null ? toOrder * stock.unitCost : null,
+        reasoning: `${group.count} x ${group.typeName}`,
+      });
     }
 
     // --- 2. Arduino boards needed ---

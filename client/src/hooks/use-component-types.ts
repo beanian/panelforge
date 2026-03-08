@@ -14,6 +14,7 @@ export interface ComponentType {
   pwmRequired: boolean;
   typicalCurrentMa: number;
   standbyCurrentMa: number;
+  requiresHardware: boolean;
   boardTypeAffinity: string | null;
   mobiFlightTemplate: unknown | null;
   notes: string | null;
@@ -31,7 +32,10 @@ export function useCreateComponentType() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<ComponentType>) => api.post('/component-types', data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['component-types'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['component-types'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
   });
 }
 
@@ -40,7 +44,10 @@ export function useUpdateComponentType() {
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string } & Partial<ComponentType>) =>
       api.patch(`/component-types/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['component-types'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['component-types'] });
+      queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    },
   });
 }
 

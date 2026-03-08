@@ -35,10 +35,19 @@ export const componentTypeService = {
     pinMosfetRequired?: boolean[];
     defaultPinMode?: string;
     pwmRequired?: boolean;
+    requiresHardware?: boolean;
     mobiFlightTemplate?: unknown;
     notes?: string;
   }) {
-    return prisma.componentType.create({ data: data as any });
+    const ct = await prisma.componentType.create({ data: data as any });
+    if (data.requiresHardware) {
+      await prisma.inventoryItem.upsert({
+        where: { name: ct.name },
+        update: {},
+        create: { name: ct.name, category: 'component' },
+      });
+    }
+    return ct;
   },
 
   async update(id: string, data: Record<string, unknown>) {
@@ -47,7 +56,18 @@ export const componentTypeService = {
       throw new AppError(404, 'Component type not found');
     }
 
-    return prisma.componentType.update({ where: { id }, data: data as any });
+    const updated = await prisma.componentType.update({ where: { id }, data: data as any });
+
+    // Sync inventory item when requiresHardware changes
+    if (updated.requiresHardware) {
+      await prisma.inventoryItem.upsert({
+        where: { name: updated.name },
+        update: {},
+        create: { name: updated.name, category: 'component' },
+      });
+    }
+
+    return updated;
   },
 
   async remove(id: string) {
