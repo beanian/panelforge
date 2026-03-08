@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Package, AlertTriangle, Plus, Minus, ShoppingCart, Loader2 } from 'lucide-react';
+import { Package, AlertTriangle, Plus, Minus, ShoppingCart, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import {
   useInventory,
   useAdjustInventoryStock,
   useUpdateInventoryItem,
+  useDeleteInventoryItem,
 } from '@/hooks/use-inventory';
 import { useBomCalculate } from '@/hooks/use-bom';
 
@@ -100,6 +101,7 @@ export default function BomGeneratorPage() {
   // Inventory state
   const { data: inventory = [], isLoading: inventoryLoading } = useInventory();
   const adjustStock = useAdjustInventoryStock();
+  const deleteItem = useDeleteInventoryItem();
 
   // BOM state
   const { data: sections = [], isLoading: sectionsLoading } = usePanelSections();
@@ -117,6 +119,14 @@ export default function BomGeneratorPage() {
       { id, delta },
       { onError: (err) => toast.error(`Stock adjust failed: ${err.message}`) }
     );
+  }
+
+  function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}" from inventory?`)) return;
+    deleteItem.mutate(id, {
+      onSuccess: () => toast.success(`Deleted "${name}"`),
+      onError: (err) => toast.error(`Delete failed: ${err.message}`),
+    });
   }
 
   // BOM derived data
@@ -168,6 +178,7 @@ export default function BomGeneratorPage() {
                     <TableHead>Category</TableHead>
                     <TableHead className="text-center">On Hand</TableHead>
                     <TableHead className="text-right">Unit Cost</TableHead>
+                    <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -205,6 +216,16 @@ export default function BomGeneratorPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <InlineCostEdit itemId={item.id} currentCost={item.unitCost} />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-6 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(item.id, item.name)}
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
