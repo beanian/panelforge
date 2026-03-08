@@ -61,11 +61,29 @@ export const bomService = {
       },
     });
 
-    // Load inventory
+    // Load inventory — build lookups by name and by category
     const inventory = await prisma.inventoryItem.findMany();
-    const inventoryByName: Record<string, { quantityOnHand: number; unitCost: number | null }> = {};
+    const inventoryByName: Record<string, { name: string; quantityOnHand: number; unitCost: number | null }> = {};
+    const inventoryByCategory: Record<string, { name: string; quantityOnHand: number; unitCost: number | null }[]> = {};
     for (const item of inventory) {
-      inventoryByName[item.name] = { quantityOnHand: item.quantityOnHand, unitCost: item.unitCost };
+      inventoryByName[item.name] = { name: item.name, quantityOnHand: item.quantityOnHand, unitCost: item.unitCost };
+      if (!inventoryByCategory[item.category]) inventoryByCategory[item.category] = [];
+      inventoryByCategory[item.category].push({ name: item.name, quantityOnHand: item.quantityOnHand, unitCost: item.unitCost });
+    }
+
+    // Find inventory item by exact name first, then by category with partial name match
+    function findInventoryItem(name: string, category: string) {
+      const defaultStock = { name, quantityOnHand: 0, unitCost: null as number | null };
+      // Exact match
+      if (inventoryByName[name]) return inventoryByName[name];
+      // Category match — find item whose name is contained in the search name or vice versa (case-insensitive)
+      const candidates = inventoryByCategory[category] ?? [];
+      const nameLower = name.toLowerCase();
+      const match = candidates.find((item) => {
+        const itemLower = item.name.toLowerCase();
+        return nameLower.includes(itemLower) || itemLower.includes(nameLower);
+      });
+      return match ?? defaultStock;
     }
 
     const lineItems: BomLineItem[] = [];
@@ -102,10 +120,10 @@ export const bomService = {
     for (const group of Object.values(typeGroups)) {
       if (!group.requiresHardware) continue;
       const totalNeeded = group.count;
-      const stock = inventoryByName[group.typeName] ?? { quantityOnHand: 0, unitCost: null };
+      const stock = findInventoryItem(group.typeName, 'component');
       const toOrder = Math.max(0, totalNeeded - stock.quantityOnHand);
       lineItems.push({
-        inventoryItemName: group.typeName,
+        inventoryItemName: stock.name,
         category: 'component',
         quantityRequired: totalNeeded,
         quantityInstalled: 0,
@@ -149,11 +167,11 @@ export const bomService = {
       const newBoardsNeeded = pinsNeedingBoards > 0 ? Math.ceil(pinsNeedingBoards / totalUsablePerBoard) : 0;
       const totalBoardsNeeded = installedCount + newBoardsNeeded;
 
-      const stock = inventoryByName[boardType] ?? { quantityOnHand: 0, unitCost: null };
+      const stock = findInventoryItem(boardType, 'board');
       const toOrder = Math.max(0, newBoardsNeeded - stock.quantityOnHand);
 
       lineItems.push({
-        inventoryItemName: boardType,
+        inventoryItemName: stock.name,
         category: 'board',
         quantityRequired: totalBoardsNeeded,
         quantityInstalled: installedCount,
@@ -185,11 +203,11 @@ export const bomService = {
       );
       const newMosfetBoardsNeeded = additionalChannelsNeeded > 0 ? Math.ceil(additionalChannelsNeeded / 8) : 0;
 
-      const stock = inventoryByName['8-Channel MOSFET Board'] ?? { quantityOnHand: 0, unitCost: null };
+      const stock = findInventoryItem('MOSFET', 'mosfet');
       const toOrder = Math.max(0, newMosfetBoardsNeeded - stock.quantityOnHand);
 
       lineItems.push({
-        inventoryItemName: '8-Channel MOSFET Board',
+        inventoryItemName: stock.name,
         category: 'mosfet',
         quantityRequired: installedMosfetBoards + newMosfetBoardsNeeded,
         quantityInstalled: installedMosfetBoards,
