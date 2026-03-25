@@ -13,6 +13,9 @@ RUN npm ci --ignore-scripts
 
 COPY . .
 
+ARG GIT_SHA=unknown
+ENV VITE_GIT_SHA=${GIT_SHA}
+
 RUN cd server && npx prisma generate
 RUN npm run build --workspace=client
 

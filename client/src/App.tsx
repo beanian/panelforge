@@ -120,7 +120,7 @@ export default function App() {
           {/* Footer */}
           <div className="px-4 py-3 border-t border-border/50">
             <p className="text-[10px] text-muted-foreground/60 font-mono">
-              v0.1.0
+              v0.2.0{import.meta.env.VITE_GIT_SHA ? ` (${import.meta.env.VITE_GIT_SHA.slice(0, 7)})` : ''}
             </p>
           </div>
         </nav>
