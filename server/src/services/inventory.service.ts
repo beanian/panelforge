@@ -13,19 +13,28 @@ export const inventoryService = {
   async ensureInfrastructureItems() {
     const existing = await prisma.inventoryItem.findMany();
     for (const req of REQUIRED_INFRASTRUCTURE) {
-      // Check if an item already covers this requirement (exact name or partial match in same category)
       const reqLower = req.name.toLowerCase();
-      const alreadyExists = existing.some((item) => {
-        if (item.name === req.name) return true;
+
+      // Find existing item by exact name or partial match in the correct category
+      const exactMatch = existing.find((item) => item.name === req.name);
+      const categoryMatch = existing.find((item) => {
+        if (item.name === req.name) return false;
         const itemLower = item.name.toLowerCase();
         return item.category === req.category &&
           (reqLower.includes(itemLower) || itemLower.includes(reqLower));
       });
-      if (!alreadyExists) {
-        await prisma.inventoryItem.upsert({
-          where: { name: req.name },
-          update: {},
-          create: { name: req.name, category: req.category, quantityOnHand: 0 },
+
+      if (exactMatch) {
+        // Fix category if it's wrong (e.g. "general" → "board")
+        if (exactMatch.category !== req.category) {
+          await prisma.inventoryItem.update({
+            where: { id: exactMatch.id },
+            data: { category: req.category },
+          });
+        }
+      } else if (!categoryMatch) {
+        await prisma.inventoryItem.create({
+          data: { name: req.name, category: req.category, quantityOnHand: 0 },
         });
       }
     }
