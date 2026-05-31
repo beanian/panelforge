@@ -74,6 +74,7 @@ export function useCreatePinAssignment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['boards'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances'] });
     },
   });
 }
@@ -85,6 +86,7 @@ export function useDeletePinAssignment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['boards'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances'] });
     },
   });
 }
