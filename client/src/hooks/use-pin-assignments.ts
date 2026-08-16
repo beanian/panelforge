@@ -54,7 +54,11 @@ export function useUpdatePinAssignment() {
   return useMutation({
     mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
       api.patch(`/pin-assignments/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['pin-assignments'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
+      queryClient.invalidateQueries({ queryKey: ['component-instances'] });
+      queryClient.invalidateQueries({ queryKey: ['mosfet-boards'] });
+    },
   });
 }
 
@@ -87,6 +91,7 @@ export function useDeletePinAssignment() {
       queryClient.invalidateQueries({ queryKey: ['pin-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       queryClient.invalidateQueries({ queryKey: ['component-instances'] });
+      queryClient.invalidateQueries({ queryKey: ['mosfet-boards'] });
     },
   });
 }

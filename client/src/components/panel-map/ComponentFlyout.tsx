@@ -24,9 +24,11 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { api } from '@/lib/api';
 import { useBoards } from '@/hooks/use-boards';
+import { useMosfetBoards } from '@/hooks/use-mosfet-boards';
 import {
   usePinAssignments,
   useCreatePinAssignment,
+  useUpdatePinAssignment,
   useDeletePinAssignment,
 } from '@/hooks/use-pin-assignments';
 import {
@@ -72,6 +74,7 @@ interface ComponentDetail {
     description: string | null;
     defaultPinCount: number;
     pinPowerRails: string[];
+    pinMosfetRequired: boolean[];
     defaultPinMode: string;
   };
   panelSection: {
@@ -195,6 +198,7 @@ export function ComponentFlyout({ componentId, open, onOpenChange, onViewSection
                   'NONE'
                 }
                 defaultPinMode={component.componentType.defaultPinMode}
+                pinMosfetRequired={component.componentType.pinMosfetRequired ?? []}
               />
             </div>
           </>
@@ -211,11 +215,13 @@ function PinAssignmentsEditor({
   pinAssignments,
   defaultPowerRail,
   defaultPinMode,
+  pinMosfetRequired,
 }: {
   componentId: string;
   pinAssignments: PinAssignment[];
   defaultPowerRail: string;
   defaultPinMode: string;
+  pinMosfetRequired: boolean[];
 }) {
   const [adding, setAdding] = useState(false);
   const deletePin = useDeletePinAssignment();
@@ -258,6 +264,11 @@ function PinAssignmentsEditor({
                   {POWER_RAIL_LABELS[pa.powerRail] ?? pa.powerRail}
                 </Badge>
               )}
+              {pa.mosfetChannel && (
+                <span className="text-[9px] text-amber-400/80 whitespace-nowrap">
+                  {pa.mosfetChannel.mosfetBoard.name} CH{pa.mosfetChannel.channelNumber}
+                </span>
+              )}
               {pa.mobiFlightMapping && (
                 <span className="text-[9px] text-slate-500 truncate max-w-[100px]">
                   {pa.mobiFlightMapping.variableName}
@@ -294,6 +305,7 @@ function PinAssignmentsEditor({
           componentId={componentId}
           defaultPowerRail={defaultPowerRail}
           defaultPinMode={defaultPinMode}
+          mosfetRequired={pinMosfetRequired[pinAssignments.length] ?? false}
           onDone={() => setAdding(false)}
         />
       )}
@@ -307,21 +319,27 @@ function AddPinForm({
   componentId,
   defaultPowerRail,
   defaultPinMode,
+  mosfetRequired,
   onDone,
 }: {
   componentId: string;
   defaultPowerRail: string;
   defaultPinMode: string;
+  mosfetRequired: boolean;
   onDone: () => void;
 }) {
   const { data: boards } = useBoards();
+  const { data: mosfetBoards } = useMosfetBoards();
   const [boardId, setBoardId] = useState('');
   const [pinNumber, setPinNumber] = useState('');
   const [requiresPwm, setRequiresPwm] = useState(defaultPinMode === 'PWM');
   const [powerRail, setPowerRail] = useState(defaultPowerRail);
   const [description, setDescription] = useState('');
+  const [mosfetBoardId, setMosfetBoardId] = useState('');
+  const [mosfetChannelId, setMosfetChannelId] = useState('');
 
   const createPin = useCreatePinAssignment();
+  const updatePin = useUpdatePinAssignment();
 
   // Pins already used on the selected board
   const { data: usedPins } = usePinAssignments(boardId ? { boardId } : {});
@@ -358,10 +376,11 @@ function AddPinForm({
     });
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     if (!boardId || !pinNumber) return;
-    createPin.mutate(
-      {
+    let created: { id: string };
+    try {
+      created = (await createPin.mutateAsync({
         boardId,
         pinNumber,
         pinType: pinNumber.startsWith('A') ? 'ANALOG' : 'DIGITAL',
@@ -369,16 +388,25 @@ function AddPinForm({
         componentInstanceId: componentId,
         powerRail,
         description: description.trim() || null,
-      },
-      {
-        onSuccess: () => {
-          toast.success(`Assigned pin ${pinNumber}`);
-          onDone();
-        },
-        onError: (err) =>
-          toast.error(`Failed to assign pin: ${(err as Error).message}`),
-      },
-    );
+      })) as { id: string };
+    } catch (err) {
+      toast.error(`Failed to assign pin: ${(err as Error).message}`);
+      return;
+    }
+
+    if (mosfetChannelId) {
+      try {
+        await updatePin.mutateAsync({ id: created.id, mosfetChannelId });
+        toast.success(`Assigned pin ${pinNumber} with MOSFET channel`);
+      } catch (err) {
+        toast.error(
+          `Pin ${pinNumber} assigned, but MOSFET channel failed: ${(err as Error).message}`,
+        );
+      }
+    } else {
+      toast.success(`Assigned pin ${pinNumber}`);
+    }
+    onDone();
   }
 
   return (
@@ -463,6 +491,58 @@ function AddPinForm({
           </div>
 
           <div>
+            <Label className="text-[11px] text-slate-400">
+              MOSFET Channel {mosfetRequired ? '(required for this component)' : '(optional)'}
+            </Label>
+            <Select
+              value={mosfetBoardId || undefined}
+              onValueChange={(v) => {
+                setMosfetBoardId(v === 'NONE' ? '' : v);
+                setMosfetChannelId('');
+              }}
+            >
+              <SelectTrigger className="mt-1 h-8 text-xs">
+                <SelectValue placeholder="Select MOSFET board..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NONE">None</SelectItem>
+                {mosfetBoards?.map((mb) => (
+                  <SelectItem key={mb.id} value={mb.id}>
+                    {mb.name} ({mb.freeChannels} free)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {mosfetBoardId && (
+              <Select
+                value={mosfetChannelId || undefined}
+                onValueChange={setMosfetChannelId}
+              >
+                <SelectTrigger className="mt-1.5 h-8 text-xs">
+                  <SelectValue placeholder="Select channel..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {mosfetBoards
+                    ?.find((mb) => mb.id === mosfetBoardId)
+                    ?.channels.filter((ch) => !ch.pinAssignment)
+                    .map((ch) => (
+                      <SelectItem key={ch.id} value={ch.id}>
+                        Channel {ch.channelNumber}
+                      </SelectItem>
+                    ))}
+                  {mosfetBoards
+                    ?.find((mb) => mb.id === mosfetBoardId)
+                    ?.channels.filter((ch) => !ch.pinAssignment).length === 0 && (
+                    <div className="px-2 py-1.5 text-xs text-slate-500">
+                      No free channels
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          <div>
             <Label className="text-[11px] text-slate-400">Description (optional)</Label>
             <Input
               value={description}
@@ -480,7 +560,7 @@ function AddPinForm({
           variant="ghost"
           className="h-7 text-xs"
           onClick={onDone}
-          disabled={createPin.isPending}
+          disabled={createPin.isPending || updatePin.isPending}
         >
           Cancel
         </Button>
@@ -488,9 +568,15 @@ function AddPinForm({
           size="sm"
           className="h-7 text-xs"
           onClick={handleCreate}
-          disabled={!boardId || !pinNumber || createPin.isPending}
+          disabled={
+            !boardId ||
+            !pinNumber ||
+            (!!mosfetBoardId && !mosfetChannelId) ||
+            createPin.isPending ||
+            updatePin.isPending
+          }
         >
-          {createPin.isPending ? 'Assigning...' : 'Assign Pin'}
+          {createPin.isPending || updatePin.isPending ? 'Assigning...' : 'Assign Pin'}
         </Button>
       </div>
     </div>
